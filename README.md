@@ -25,37 +25,64 @@ Game mô phỏng Plants vs. Zombies với 2 chế độ:
 ## 4. Phân chia công việc (5 thành viên)
 
 ### Thành viên 1: Core Engine & Bàn cờ
-- `GameEngine`, `GameLoop` (vòng lặp 60 FPS update/render).
-- `InputManager`: Xử lý click chuột, map tọa độ pixel sang hàng/cột.
-- `GameObject`, `Entity` (lớp cơ sở cho toàn bộ game).
-- `GameBoard`, `Tile` (`GrassTile`, `WaterTile`, `CraterTile`).
-- `GameState` (Menu, Playing, Pause, GameOver).
+- **Nhiệm vụ chính:**
+  - `GameEngine`, `GameLoop` (vòng lặp 60 FPS update/render).
+  - `InputManager`: Xử lý click chuột, map tọa độ pixel sang hàng/cột.
+  - `GameObject`, `Entity` (lớp cơ sở cho toàn bộ game).
+  - `GameBoard`, `Tile` (`GrassTile`, `WaterTile`, `CraterTile`).
+  - `GameState` (Menu, Playing, Pause, GameOver).
+- **Kiến thức cần học:** JavaFX `AnimationTimer` (Game Loop), Ma trận lưới 2D (Grid Mapping), State Pattern, Singleton Pattern.
+- **Nguồn tham khảo:**
+  - [JavaFX Game Loop Tutorial (AnimationTimer)](https://openjfx.io)
+  - [Refactoring Guru: State Pattern](https://refactoring.guru/design-patterns/state) & [Singleton Pattern](https://refactoring.guru/design-patterns/singleton)
 
 ### Thành viên 2: Cây trồng & Kinh tế (Sun/Cards)
-- `Plant` (abstract) và các cây: `Peashooter`, `Sunflower`, `WallNut`, `SnowPea`, `CherryBomb`, `LilyPad`.
-- `PlantFactory`: Khởi tạo cây theo type.
-- `Sun`: Rơi ngẫu nhiên hoặc sinh từ Sunflower, logic click nhặt.
-- `CardSlot`, `DeckManager`: Thanh chọn thẻ, quản lý cooldown và trừ Sun khi trồng.
+- **Nhiệm vụ chính:**
+  - `Plant` (abstract) và các cây: `Peashooter`, `Sunflower`, `WallNut`, `SnowPea`, `CherryBomb`, `LilyPad`.
+  - `PlantFactory`: Khởi tạo cây theo type.
+  - `Sun`: Rơi ngẫu nhiên hoặc sinh từ Sunflower, logic click nhặt.
+  - `CardSlot`, `DeckManager`: Thanh chọn thẻ, quản lý cooldown và trừ Sun khi trồng.
+- **Kiến thức cần học:** Lớp trừu tượng (Abstract Class) & Kế thừa, Factory Pattern, Quản lý thời gian hồi chiêu (Cooldown Timer với delta time).
+- **Nguồn tham khảo:**
+  - [Refactoring Guru: Factory Method](https://refactoring.guru/design-patterns/factory-method)
+  - [Game Programming Patterns: Game Loop / Delta Time](https://gameprogrammingpatterns.com/game-loop.html)
 
 ### Thành viên 3: Zombie & Wave Spawner
-- `Zombie` (abstract) và các loại: `NormalZombie`, `ConeheadZombie`, `BucketheadZombie`, `PoleVaultingZombie`, `WaterZombie`.
-- `ZombieFactory`: Khởi tạo zombie.
-- `ZombieState`: `WalkingState`, `EatingState`, `VaultingState`, `DeadState`.
-- `Wave`, `WaveManager`: Đọc cấu hình đợt tấn công, canh thời gian spawn zombie và vẽ thanh tiến trình wave.
+- **Nhiệm vụ chính:**
+  - `Zombie` (abstract) và các loại: `NormalZombie`, `ConeheadZombie`, `BucketheadZombie`, `PoleVaultingZombie`, `WaterZombie`.
+  - `ZombieFactory`: Khởi tạo zombie.
+  - `ZombieState`: `WalkingState`, `EatingState`, `VaultingState`, `DeadState`.
+  - `Wave`, `WaveManager`: Đọc cấu hình đợt tấn công, canh thời gian spawn zombie và vẽ thanh tiến trình wave.
+- **Kiến thức cần học:** State Pattern (Finite State Machine cho AI đơn giản), Đa hình (Polymorphism), Quản lý timeline đợt quái.
+- **Nguồn tham khảo:**
+  - [Game Programming Patterns: State](https://gameprogrammingpatterns.com/state.html)
+  - [Refactoring Guru: Finite State Machine](https://refactoring.guru/design-patterns/state)
 
 ### Thành viên 4: Chiến đấu & Hiệu ứng
-- `Projectile`: `PeaProjectile`, `SnowPeaProjectile` (hiệu ứng làm chậm).
-- `CollisionSystem`: Kiểm tra va chạm đạn - zombie, zombie - cây, xe cắt cỏ - zombie.
-- `LawnMower`: Xe cắt cỏ ở mỗi hàng.
-- `ShovelTool`: Công cụ xẻng nhổ cây.
-- `CombatEventBus`: Bắn event khi trúng đạn, nổ bom, zombie chết; phát âm thanh/hiệu ứng tương ứng.
+- **Nhiệm vụ chính:**
+  - `Projectile`: `PeaProjectile`, `SnowPeaProjectile` (hiệu ứng làm chậm).
+  - `CollisionSystem`: Kiểm tra va chạm đạn - zombie, zombie - cây, xe cắt cỏ - zombie.
+  - `LawnMower`: Xe cắt cỏ ở mỗi hàng.
+  - `ShovelTool`: Công cụ xẻng nhổ cây.
+  - `CombatEventBus`: Bắn event khi trúng đạn, nổ bom, zombie chết; phát âm thanh/hiệu ứng tương ứng.
+- **Kiến thức cần học:** Thuật toán va chạm 2D AABB (Axis-Aligned Bounding Box), Observer Pattern (Event Bus), Phát âm thanh low-latency với JavaFX `AudioClip`.
+- **Nguồn tham khảo:**
+  - [MDN: 2D Collision Detection (AABB)](https://developer.mozilla.org/en-US/docs/Games/Techniques/2D_collision_detection)
+  - [Refactoring Guru: Observer Pattern](https://refactoring.guru/design-patterns/observer)
+  - [Oracle JavaFX AudioClip Documentation](https://openjfx.io/javadoc/21/javafx.media/javafx/scene/media/AudioClip.html)
 
 ### Thành viên 5: Map Builder & Lưu/Đọc File
-- `MapBuilder`, `CustomMapBuilder`: Logic xây dựng map.
-- `LevelDirector`: Cấu hình các map mẫu (Day, Pool).
-- `MapSerializer`: Đọc / ghi file map sang JSON.
-- `MapEditorController` & `MapEditorView`: Giao diện vẽ map (click chọn tile/cây -> đặt lên lưới, lưu file).
-- `LevelSelectView`: Màn hình chọn map có sẵn hoặc nạp map tùy chỉnh.
+- **Nhiệm vụ chính:**
+  - `MapBuilder`, `CustomMapBuilder`: Logic xây dựng map.
+  - `LevelDirector`: Cấu hình các map mẫu (Day, Pool).
+  - `MapSerializer`: Đọc / ghi file map sang JSON.
+  - `MapEditorController` & `MapEditorView`: Giao diện vẽ map (click chọn tile/cây -> đặt lên lưới, lưu file).
+  - `LevelSelectView`: Màn hình chọn map có sẵn hoặc nạp map tùy chỉnh.
+- **Kiến thức cần học:** Builder Pattern, Đọc/ghi JSON bằng Google Gson, Xử lý sự kiện chuột trên JavaFX UI (`setOnMouseClicked`).
+- **Nguồn tham khảo:**
+  - [Refactoring Guru: Builder Pattern](https://refactoring.guru/design-patterns/builder)
+  - [Baeldung: Google Gson Guide](https://www.baeldung.com/gson-deserialization-guide)
+  - [Jenkov: JavaFX Event Handling](https://jenkov.com/tutorials/javafx/events.html)
 
 ## 5. Sơ đồ lớp (Class Diagram)
 ```mermaid
