@@ -60,19 +60,20 @@ Game mô phỏng Plants vs. Zombies với 2 chế độ:
 ## 5. Sơ đồ lớp (Class Diagram)
 ```mermaid
 classDiagram
-    direction TB
     class GameObject {
         <<abstract>>
-        #double x, y
-        #double width, height
-        +update(double deltaTime)*
-        +render(GraphicsContext gc)*
+        #double x
+        #double y
+        #double width
+        #double height
+        +update(double deltaTime)
+        +render(GraphicsContext gc)
     }
     class Entity {
         <<abstract>>
         #int hp
         +takeDamage(int amount)
-        +isAlive() boolean
+        +isAlive() bool
     }
     class Plant {
         <<abstract>>
@@ -87,7 +88,8 @@ classDiagram
     }
     class Tile {
         <<abstract>>
-        #int row, col
+        #int row
+        #int col
         #boolean canPlant
     }
     class Projectile {
@@ -97,9 +99,9 @@ classDiagram
     }
     class MapBuilder {
         <<interface>>
-        +setTile(row, col, tile)
-        +addPrePlanted(row, col, plant)
-        +addWave(wave)
+        +setTile(int r, int c, Tile tile)
+        +addPrePlanted(int r, int c, Plant plant)
+        +addWave(Wave wave)
         +build() GameMap
     }
 
