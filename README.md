@@ -124,32 +124,31 @@ classDiagram
 
 ## 6. Cấu trúc thư mục dự án
 ```text
-.
-├── .gitignore
-├── README.md
-├── pom.xml
-└── src/
-    └── main/
-        ├── java/com/pvz/
-        │   ├── Main.java
-        │   ├── core/           # GameEngine, GameLoop, InputManager
-        │   ├── model/
-        │   │   ├── base/       # GameObject, Entity
-        │   │   ├── board/      # GameBoard
-        │   │   ├── tile/       # Tile, GrassTile, WaterTile, CraterTile
-        │   │   ├── plant/      # Plant, Peashooter, Sunflower, WallNut, ...
-        │   │   ├── zombie/     # Zombie, NormalZombie, ConeheadZombie, ...
-        │   │   ├── projectile/ # Projectile, Pea, SnowPea
-        │   │   ├── wave/       # Wave, WaveManager
-        │   │   └── economy/    # Sun, CardSlot, DeckManager
-        │   ├── builder/        # MapBuilder, CustomMapBuilder, LevelDirector
-        │   ├── state/          # GameState, ZombieState
-        │   ├── system/         # CollisionSystem, CombatEventBus
-        │   ├── io/             # MapSerializer (JSON Save/Load)
-        │   └── view/           # GameCanvas, MapEditorView, HUDView
-        └── resources/
-            ├── assets/         # Sprites, Icons, SFX
-            └── levels/         # File map mẫu (.json)
+.gitignore
+README.md
+pom.xml
+src/
+└── main/
+    ├── java/com/pvz/
+    │   ├── Main.java
+    │   ├── core/           # GameEngine, GameLoop, InputManager
+    │   ├── model/
+    │   │   ├── base/       # GameObject, Entity
+    │   │   ├── board/      # GameBoard
+    │   │   ├── tile/       # Tile, GrassTile, WaterTile, CraterTile
+    │   │   ├── plant/      # Plant, Peashooter, Sunflower, WallNut, ...
+    │   │   ├── zombie/     # Zombie, NormalZombie, ConeheadZombie, ...
+    │   │   ├── projectile/ # Projectile, Pea, SnowPea
+    │   │   ├── wave/       # Wave, WaveManager
+    │   │   └── economy/    # Sun, CardSlot, DeckManager
+    │   ├── builder/        # MapBuilder, CustomMapBuilder, LevelDirector
+    │   ├── state/          # GameState, ZombieState
+    │   ├── system/         # CollisionSystem, CombatEventBus
+    │   ├── io/             # MapSerializer (JSON Save/Load)
+    │   └── view/           # GameCanvas, MapEditorView, HUDView
+    └── resources/
+        ├── assets/         # Sprites, Icons, SFX
+        └── levels/         # File map mẫu (.json)
 ```
 
 ## 7. Quy tắc Git & Phối hợp
