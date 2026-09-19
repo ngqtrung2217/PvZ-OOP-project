@@ -124,7 +124,7 @@ classDiagram
 
 ## 6. Cấu trúc thư mục dự án
 ```text
-pvz-project/
+.
 ├── .gitignore
 ├── README.md
 ├── pom.xml
