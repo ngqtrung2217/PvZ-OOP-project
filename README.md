@@ -24,7 +24,7 @@ Game mô phỏng Plants vs. Zombies với 2 chế độ:
 
 ## 4. Phân chia công việc & Kiến thức chi tiết (5 thành viên)
 
-### Thành viên 1: Core Engine, Grid & Trạng thái Game
+### Thành viên 1: Core Engine, Grid & Trạng thái Game (Trung)
 - **Nhiệm vụ & Thiết kế Class:**
   - `GameObject` (abstract): Tọa độ `x`, `y`, kích thước `width`, `height`. Phương thức trừu tượng `update(double deltaTime)`, `render(GraphicsContext gc)`, `getHitbox()`.
   - `Entity` (abstract kế thừa `GameObject`): Thuộc tính `hp`, `maxHp`. Phương thức `takeDamage(int dmg)`, `isAlive()`.
@@ -43,7 +43,7 @@ Game mô phỏng Plants vs. Zombies với 2 chế độ:
   - [Refactoring Guru: Singleton Pattern](https://refactoring.guru/design-patterns/singleton/java/example)
   - [Baeldung: Multidimensional Arrays in Java](https://www.baeldung.com/java-two-dimensional-arrays)
 
-### Thành viên 2: Hệ sinh thái Cây trồng & Kinh tế Mặt trời
+### Thành viên 2: Hệ sinh thái Cây trồng & Kinh tế Mặt trời (An Nguyên)
 - **Nhiệm vụ & Thiết kế Class:**
   - `Plant` (abstract kế thừa `Entity`): Thuộc tính `cost`, `cooldown`, `attackSpeed`.
   - Các phân lớp cụ thể: `Sunflower` (đếm thời gian sinh Sun), `Peashooter` (quét zombie trên hàng để bắn đậu), `SnowPea` (bắn đậu băng làm chậm), `WallNut` (máu cao chắn đường), `CherryBomb` (nổ diện rộng 3x3), `LilyPad` (bèo đệm trên nước).
@@ -61,7 +61,7 @@ Game mô phỏng Plants vs. Zombies với 2 chế độ:
   - [Oracle Java: Abstract Methods and Classes](https://docs.oracle.com/javase/tutorial/java/IandI/abstract.html)
   - [Jenkov: JavaFX Mouse Event Handling](https://jenkov.com/tutorials/javafx/events.html)
 
-### Thành viên 3: Zombie AI, State Machine & Wave Spawner
+### Thành viên 3: Zombie AI, State Machine & Wave Spawner (Ngọc Minh)
 - **Nhiệm vụ & Thiết kế Class:**
   - `Zombie` (abstract kế thừa `Entity`): Thuộc tính `speed`, `attackDamage`, `currentLane`, `state`.
   - Phân lớp Zombie: `NormalZombie` (cơ bản), `ConeheadZombie` / `BucketheadZombie` (quản lý giáp phụ Armor HP, đổi sprite khi vỡ giáp), `PoleVaultingZombie` (cầm sào nhảy vượt qua cây đầu tiên), `WaterZombie` (chuyển sang bơi khi gặp ô nước).
@@ -77,7 +77,7 @@ Game mô phỏng Plants vs. Zombies với 2 chế độ:
   - [Refactoring Guru: State Pattern Comprehensive Guide](https://refactoring.guru/design-patterns/state)
   - [Baeldung: Correct Removal in Java Collections](https://www.baeldung.com/java-concurrentmodificationexception)
 
-### Thành viên 4: Hệ thống Chiến đấu, Va chạm & Hiệu ứng Âm thanh
+### Thành viên 4: Hệ thống Chiến đấu, Va chạm & Hiệu ứng Âm thanh (Tuấn Minh)
 - **Nhiệm vụ & Thiết kế Class:**
   - `Projectile` (abstract kế thừa `GameObject`): Thuộc tính `speed`, `damage`, `lane`. Phân lớp: `PeaProjectile` (đạn thường), `SnowPeaProjectile` (đạn băng làm chậm 50%).
   - `CollisionSystem`:
@@ -97,7 +97,7 @@ Game mô phỏng Plants vs. Zombies với 2 chế độ:
   - [Refactoring Guru: Observer Pattern in Java](https://refactoring.guru/design-patterns/observer/java/example)
   - [Oracle JavaFX AudioClip Class Reference](https://openjfx.io/javadoc/21/javafx.media/javafx/scene/media/AudioClip.html)
 
-### Thành viên 5: Map Builder Engine, Lưu/Đọc File & Trình soạn thảo GUI
+### Thành viên 5: Map Builder Engine, Lưu/Đọc File & Trình soạn thảo GUI (Quang)
 - **Nhiệm vụ & Thiết kế Class:**
   - `MapBuilder` (interface định nghĩa các bước dựng map) & `CustomMapBuilder` (hiện thực chi tiết **Builder Pattern**).
   - `LevelDirector`: Xây dựng sẵn các kịch bản màn chơi mẫu (Stage Ban ngày, Stage Bể bơi).
