@@ -28,7 +28,8 @@ Game mô phỏng Plants vs. Zombies với 2 chế độ:
 - **Nhiệm vụ & Thiết kế Class:**
   - `GameObject` (abstract): Tọa độ `x`, `y`, kích thước `width`, `height`. Phương thức trừu tượng `update(double deltaTime)`, `render(GraphicsContext gc)`, `getHitbox()`.
   - `Entity` (abstract kế thừa `GameObject`): Thuộc tính `hp`, `maxHp`. Phương thức `takeDamage(int dmg)`, `isAlive()`.
-  - `Tile` (abstract kế thừa `GameObject`): Tọa độ hàng `row`, cột `col`, cờ `canPlant`, `canWalk`. Các phân lớp: `GrassTile`, `WaterTile`, `CraterTile`.
+  - `Tile` (abstract kế thừa `GameObject`): Tọa độ hàng `row`, cột `col`, loại `TileType`, cờ `canPlant` (mỗi phân lớp quy định sẵn, không đổi sau khi tạo). Các phân lớp: `GrassTile`, `WaterTile`, `CraterTile`.
+  - `GameManager` (Singleton): quản lý state hiện tại và số Sun của phiên chơi. `startNewGame(...)` mở phiên mới (nạp lại Sun), `changeState(...)` chỉ chuyển state nên Pause/Resume giữ nguyên tiến độ.
   - `GameBoard`: Ma trận 2D `Tile[5][9]`, quản lý danh sách thực thể và ánh xạ pixel sang ô cờ.
   - `GameState`: Interface quản lý vòng đời game theo **State Pattern** (`MenuState`, `PlayingState`, `PauseState`, `GameOverState`).
   - `GameLoop`: Kế thừa `AnimationTimer` của JavaFX, điều phối vòng lặp game tách biệt giữa logic (`update`) và vẽ đồ họa (`render`).
@@ -358,18 +359,18 @@ src/
 └── test/                                               # [Toàn nhóm] Hệ thống kiểm thử tự động (JUnit 5)
     └── java/com/pvz/
         ├── core/
-        │   └── GameBoardTest.java                      # Kiểm tra tính toán tọa độ Grid <-> Pixel
-        ├── plant/
-        │   ├── PlantFactoryTest.java                   # Kiểm thử tạo đúng đối tượng theo Factory
-        │   └── SunflowerEconomyTest.java               # Kiểm thử chu kỳ sinh Sun của hướng dương
-        ├── zombie/
-        │   └── ZombieFSMTest.java                      # Kiểm thử chuyển trạng thái Walk -> Eat -> Dead
-        ├── system/
-        │   └── CollisionTest.java                      # Kiểm thử va chạm AABB giữa đạn và quái
-        └── builder/
-            ├── MapBuilderTest.java                     # Kiểm thử dựng map qua Builder Pattern
-            └── JsonSerializationTest.java              # Kiểm thử ghi và đọc file map JSON khớp dữ liệu
+        │   ├── GameBoardTest.java                      # Kiểm tra tính toán tọa độ Grid <-> Pixel
+        │   └── GameManagerTest.java                    # Kiểm thử chuyển State & quản lý Sun phiên chơi
+        │
+        │   # --- Kế hoạch, sẽ bổ sung khi các module tương ứng hoàn thành ---
+        ├── plant/                                      # [TV2] PlantFactoryTest, SunflowerEconomyTest
+        ├── zombie/                                     # [TV3] ZombieFSMTest
+        ├── system/                                     # [TV4] CollisionTest
+        └── builder/                                    # [TV5] MapBuilderTest, JsonSerializationTest
 ```
+
+> **Trạng thái hiện tại (nhánh `feat/core-engine`):** phần Engine + Grid + State đã chạy được
+> (`mvn test` → 14/14 pass), các package còn lại là khung kế hoạch cho các thành viên bổ sung dần.
 
 ---
 
