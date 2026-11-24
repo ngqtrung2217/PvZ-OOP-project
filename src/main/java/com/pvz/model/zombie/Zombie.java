@@ -1,0 +1,261 @@
+package com.pvz.model.zombie;
+
+import com.pvz.model.base.Entity;
+import com.pvz.model.board.GameBoard;
+import com.pvz.model.tile.Tile;
+import com.pvz.model.tile.TileType;
+import com.pvz.model.zombie.state.DeadState;
+import com.pvz.model.zombie.state.EatingState;
+import com.pvz.model.zombie.state.WalkingState;
+import com.pvz.model.zombie.state.ZombieState;
+import javafx.scene.canvas.GraphicsContext;
+import javafx.scene.paint.Color;
+
+/**
+ * Abstract base class for all Zombie variants.
+ * Managed by a Finite State Machine (FSM) via {@link ZombieState}.
+ */
+public abstract class Zombie extends Entity {
+    protected int lane;
+    protected double speed;
+    protected int attackDamage;
+    protected ZombieState currentState;
+    protected Entity currentTarget;
+    protected boolean readyToRemove;
+    protected GameBoard board;
+    protected Color renderColor;
+
+    // Additional configuration fields for state transitions & mechanics
+    protected double attackInterval = 1.0;
+    protected double swimSpeed;
+    protected boolean hasVaulted = false;
+    protected boolean waterZombie = false;
+
+    public Zombie(double x, double y, double width, double height, int maxHp,
+                  double speed, int attackDamage, int lane, GameBoard board) {
+        super(x, y, width, height, maxHp);
+        this.speed = speed;
+        this.attackDamage = attackDamage;
+        this.swimSpeed = speed;
+        this.lane = lane;
+        this.board = board;
+        this.readyToRemove = false;
+        this.renderColor = Color.DARKGRAY;
+        this.currentState = new WalkingState();
+        this.currentState.enter(this);
+    }
+
+    public Zombie(double x, double y, double width, double height, int maxHp,
+                  double speed, int attackDamage) {
+        this(x, y, width, height, maxHp, speed, attackDamage, 0, null);
+    }
+
+    public Zombie(double x, double y, double width, double height, int maxHp) {
+        this(x, y, width, height, maxHp, 17.0, 25, 0, null);
+    }
+
+    /**
+     * Transitions this zombie to a new state, invoking exit() on the old
+     * state and enter() on the new one.
+     *
+     * @param newState The incoming ZombieState.
+     */
+    public void changeState(ZombieState newState) {
+        if (newState == null) {
+            return;
+        }
+        if (this.currentState != null) {
+            this.currentState.exit(this);
+        }
+        this.currentState = newState;
+        this.currentState.enter(this);
+    }
+
+    /**
+     * Polymorphic hook called when colliding with an obstacle or plant.
+     * Default behavior sets the target and transitions into EatingState.
+     * Subclasses (such as PoleVaultingZombie) may override to vault over obstacles.
+     *
+     * @param target The collided entity.
+     * @param isTallObstacle True if obstacle cannot be vaulted over.
+     */
+    public void onCollideWithTarget(Entity target, boolean isTallObstacle) {
+        if (target == null || !target.isAlive()) {
+            return;
+        }
+        this.currentTarget = target;
+        changeState(new EatingState());
+    }
+
+    @Override
+    public void takeDamage(int amount) {
+        super.takeDamage(amount);
+        if (!isAlive() && !(currentState instanceof DeadState)) {
+            changeState(new DeadState());
+        }
+    }
+
+    @Override
+    public void update(double deltaTime) {
+        if (currentState != null) {
+            currentState.update(this, deltaTime);
+        }
+    }
+
+    @Override
+    public void render(GraphicsContext gc) {
+        if (gc == null) {
+            return;
+        }
+
+        // Draw fallback body rectangle
+        gc.setFill(renderColor != null ? renderColor : Color.DARKGRAY);
+        gc.fillRect(x, y, width, height);
+
+        // Body outline
+        gc.setStroke(Color.BLACK);
+        gc.setLineWidth(1.0);
+        gc.strokeRect(x, y, width, height);
+
+        // Draw health bar above head
+        double barWidth = width;
+        double barHeight = 6.0;
+        double barX = x;
+        double barY = y - barHeight - 4.0;
+
+        // Health bar background
+        gc.setFill(Color.RED);
+        gc.fillRect(barX, barY, barWidth, barHeight);
+
+        // Health bar foreground (current HP)
+        if (maxHp > 0 && hp > 0) {
+            double hpRatio = Math.max(0.0, Math.min(1.0, (double) hp / maxHp));
+            gc.setFill(Color.LIMEGREEN);
+            gc.fillRect(barX, barY, barWidth * hpRatio, barHeight);
+        }
+
+        // Health bar border
+        gc.setStroke(Color.BLACK);
+        gc.setLineWidth(1.0);
+        gc.strokeRect(barX, barY, barWidth, barHeight);
+    }
+
+    /**
+     * Checks whether this zombie's feet/center are on a WATER tile.
+     */
+    public boolean isOnWater() {
+        if (board == null) {
+            return false;
+        }
+        int col = board.getColAt(x + width / 2.0);
+        if (col == -1) {
+            col = board.getColAt(x);
+        }
+        if (col != -1 && lane >= 0 && lane < GameBoard.ROWS) {
+            Tile tile = board.getTile(lane, col);
+            return tile != null && tile.getType() == TileType.WATER;
+        }
+        return false;
+    }
+
+    // Getters and Setters
+    public int getLane() {
+        return lane;
+    }
+
+    public void setLane(int lane) {
+        this.lane = lane;
+    }
+
+    public double getSpeed() {
+        return speed;
+    }
+
+    public void setSpeed(double speed) {
+        this.speed = speed;
+    }
+
+    public int getAttackDamage() {
+        return attackDamage;
+    }
+
+    public void setAttackDamage(int attackDamage) {
+        this.attackDamage = attackDamage;
+    }
+
+    public ZombieState getCurrentState() {
+        return currentState;
+    }
+
+    public Entity getCurrentTarget() {
+        return currentTarget;
+    }
+
+    public void setCurrentTarget(Entity currentTarget) {
+        this.currentTarget = currentTarget;
+    }
+
+    public boolean isReadyToRemove() {
+        return readyToRemove;
+    }
+
+    public void setReadyToRemove(boolean readyToRemove) {
+        this.readyToRemove = readyToRemove;
+    }
+
+    public void setX(double x) {
+        this.x = x;
+    }
+
+    public void setY(double y) {
+        this.y = y;
+    }
+
+    public GameBoard getBoard() {
+        return board;
+    }
+
+    public void setBoard(GameBoard board) {
+        this.board = board;
+    }
+
+    public Color getRenderColor() {
+        return renderColor;
+    }
+
+    public void setRenderColor(Color renderColor) {
+        this.renderColor = renderColor;
+    }
+
+    public double getAttackInterval() {
+        return attackInterval;
+    }
+
+    public void setAttackInterval(double attackInterval) {
+        this.attackInterval = attackInterval;
+    }
+
+    public double getSwimSpeed() {
+        return swimSpeed;
+    }
+
+    public void setSwimSpeed(double swimSpeed) {
+        this.swimSpeed = swimSpeed;
+    }
+
+    public boolean hasVaulted() {
+        return hasVaulted;
+    }
+
+    public void setVaulted(boolean hasVaulted) {
+        this.hasVaulted = hasVaulted;
+    }
+
+    public boolean isWaterZombie() {
+        return waterZombie || getClass().getSimpleName().equals("WaterZombie");
+    }
+
+    public void setWaterZombie(boolean waterZombie) {
+        this.waterZombie = waterZombie;
+    }
+}
