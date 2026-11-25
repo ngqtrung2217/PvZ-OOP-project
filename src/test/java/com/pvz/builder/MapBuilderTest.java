@@ -1,10 +1,13 @@
 package com.pvz.builder;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Set;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -16,6 +19,8 @@ import com.pvz.model.board.GameBoard;
 import com.pvz.model.tile.CraterTile;
 import com.pvz.model.tile.TileType;
 import com.pvz.model.tile.WaterTile;
+import com.pvz.model.wave.Wave;
+import com.pvz.model.wave.WaveEntry;
 
 /**
  * Unit tests for CustomMapBuilder validation and the GameMap it builds.
@@ -150,5 +155,76 @@ class MapBuilderTest {
         assertEquals(TileType.CRATER, a.getTile(0, 0).getType());
         assertEquals(TileType.GRASS, b.getTile(0, 0).getType());
         assertEquals(TileType.GRASS, map.getTileType(0, 0));
+    }
+
+    @Test
+    @DisplayName("Added waves keep their order and content")
+    void testAddWave() {
+        GameMap map = builder.addWave(waveOf("NORMAL", 1, 2.0))
+                .addWave(new WaveConfig(List.of(new SpawnConfig("FLAG", 4, 0)), true))
+                .build();
+
+        List<Wave> waves = map.createWaves();
+        assertEquals(2, waves.size());
+        assertFalse(waves.get(0).isHugeWave());
+        assertTrue(waves.get(1).isHugeWave());
+
+        WaveEntry entry = waves.get(0).getEntries().get(0);
+        assertEquals("NORMAL", entry.getZombieType());
+        assertEquals(1, entry.getLane());
+        assertEquals(2.0, entry.getSpawnDelay(), 0.001);
+        assertFalse(entry.isSpawned());
+    }
+
+    @Test
+    @DisplayName("Playing one session's waves does not affect the next session")
+    void testWavesAreIndependent() {
+        GameMap map = builder.addWave(waveOf("NORMAL", 0, 1.0)).build();
+
+        map.createWaves().get(0).getEntries().get(0).setSpawned(true);
+
+        assertFalse(map.createWaves().get(0).getEntries().get(0).isSpawned());
+    }
+
+    @Test
+    @DisplayName("Changing the builder or the source list does not affect built waves")
+    void testWavesAreSnapshot() {
+        List<SpawnConfig> spawns = new ArrayList<>();
+        spawns.add(new SpawnConfig("NORMAL", 0, 1.0));
+        GameMap map = builder.addWave(new WaveConfig(spawns, false)).build();
+
+        spawns.clear();
+        builder.addWave(waveOf("FLAG", 0, 1.0));
+
+        assertEquals(1, map.getWaves().size());
+        assertEquals(1, map.getWaves().get(0).getSpawns().size());
+    }
+
+    @Test
+    @DisplayName("Null waves, invalid lanes and unknown zombie types are rejected")
+    void testInvalidWave() {
+        assertThrows(IllegalArgumentException.class, () -> builder.addWave(null));
+        assertThrows(IllegalArgumentException.class,
+                () -> builder.addWave(waveOf("NORMAL", -1, 1.0)));
+        assertThrows(IllegalArgumentException.class,
+                () -> builder.addWave(waveOf("NORMAL", GameBoard.ROWS, 1.0)));
+        assertThrows(IllegalArgumentException.class,
+                () -> builder.addWave(waveOf("ABC", 0, 1.0)));
+        assertTrue(builder.build().getWaves().isEmpty());
+    }
+
+    @Test
+    @DisplayName("Empty waves, blank types and impossible delays are rejected")
+    void testInvalidWaveConfig() {
+        assertThrows(IllegalArgumentException.class, () -> new WaveConfig(null, false));
+        assertThrows(IllegalArgumentException.class, () -> new WaveConfig(List.of(), false));
+        assertThrows(IllegalArgumentException.class, () -> new SpawnConfig(" ", 0, 1.0));
+        assertThrows(IllegalArgumentException.class, () -> new SpawnConfig("NORMAL", 0, -1.0));
+        assertThrows(IllegalArgumentException.class,
+                () -> new SpawnConfig("NORMAL", 0, Double.NaN));
+    }
+
+    private static WaveConfig waveOf(String zombieType, int lane, double spawnDelay) {
+        return new WaveConfig(List.of(new SpawnConfig(zombieType, lane, spawnDelay)), false);
     }
 }

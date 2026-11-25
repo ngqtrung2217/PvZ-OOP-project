@@ -9,6 +9,8 @@ public interface MapBuilder {
 
     MapBuilder addPrePlanted(int row, int col, String plantId);
 
+    /** Waves are played in the order they are added. */
+    MapBuilder addWave(WaveConfig wave);
+
     GameMap build();
-    // TODO(Ngoc Minh): addWave(Wave wave) when feat/zombie-states is merged
 }

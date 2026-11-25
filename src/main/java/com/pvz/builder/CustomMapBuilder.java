@@ -8,6 +8,7 @@ import java.util.Set;
 import com.pvz.core.GameManager;
 import com.pvz.model.board.GameBoard;
 import com.pvz.model.tile.TileType;
+import com.pvz.model.zombie.ZombieFactory;
 
 /**
  * Default {@link MapBuilder}. Starts from an all-grass board with the standard sun balance.
@@ -15,6 +16,7 @@ import com.pvz.model.tile.TileType;
 public class CustomMapBuilder implements MapBuilder {
     private final TileType[][] tiles = new TileType[GameBoard.ROWS][GameBoard.COLS];
     private final List<PrePlanted> prePlanted = new ArrayList<>();
+    private final List<WaveConfig> waves = new ArrayList<>();
     private final Set<String> validPlantIds;
     private int startingSun = GameManager.STARTING_SUN;
 
@@ -56,10 +58,22 @@ public class CustomMapBuilder implements MapBuilder {
     }
 
     @Override
+    public MapBuilder addWave(WaveConfig wave) {
+        if (wave == null) {
+            throw new IllegalArgumentException("Wave cannot be null");
+        }
+        for (SpawnConfig spawn : wave.getSpawns()) {
+            requireValidSpawn(spawn);
+        }
+        waves.add(wave);
+        return this;
+    }
+
+    @Override
     public GameMap build() {
         validatePlantCapacity();
         // TODO(An Nguyen): check allowedTiles / isSupport when plants_spec.json exists
-        return new GameMap(tiles, startingSun, prePlanted);
+        return new GameMap(tiles, startingSun, prePlanted, waves);
     }
 
     /**
@@ -85,6 +99,16 @@ public class CustomMapBuilder implements MapBuilder {
             case WATER -> 2;
             case CRATER -> 0;
         };
+    }
+
+    /** Otherwise a bad spawn would only show up in the middle of a game. */
+    private static void requireValidSpawn(SpawnConfig spawn) {
+        if (spawn.getLane() < 0 || spawn.getLane() >= GameBoard.ROWS) {
+            throw new IllegalArgumentException("Lane out of bounds: " + spawn.getLane());
+        }
+        if (ZombieFactory.getSpec(spawn.getZombieType()) == null) {
+            throw new IllegalArgumentException("Unknown zombie type: " + spawn.getZombieType());
+        }
     }
 
     private static void requireValidCell(int row, int col) {

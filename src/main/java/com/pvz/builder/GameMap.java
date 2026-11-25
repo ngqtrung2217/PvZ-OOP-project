@@ -1,5 +1,6 @@
 package com.pvz.builder;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import com.pvz.model.board.GameBoard;
@@ -8,18 +9,21 @@ import com.pvz.model.tile.GrassTile;
 import com.pvz.model.tile.Tile;
 import com.pvz.model.tile.TileType;
 import com.pvz.model.tile.WaterTile;
+import com.pvz.model.wave.Wave;
 
 /**
- * Immutable map configuration: terrain, starting sun and pre-planted plants.
+ * Immutable map configuration: terrain, starting sun, pre-planted plants and waves.
  * Describes how a session starts and is never changed by playing it.
  */
 public final class GameMap {
     private final TileType[][] tiles;
     private final int startingSun;
     private final List<PrePlanted> prePlanted;
+    private final List<WaveConfig> waves;
 
     // Package-private: other packages must create maps through a MapBuilder
-    GameMap(TileType[][] tiles, int startingSun, List<PrePlanted> prePlanted) {
+    GameMap(TileType[][] tiles, int startingSun, List<PrePlanted> prePlanted,
+            List<WaveConfig> waves) {
         this.tiles = new TileType[tiles.length][];
 
         for (int r = 0; r < tiles.length; r++) {
@@ -28,6 +32,7 @@ public final class GameMap {
 
         this.startingSun = startingSun;
         this.prePlanted = List.copyOf(prePlanted);
+        this.waves = List.copyOf(waves);
     }
 
     /**
@@ -48,6 +53,22 @@ public final class GameMap {
 
     public List<PrePlanted> getPrePlanted() {
         return prePlanted;
+    }
+
+    public List<WaveConfig> getWaves() {
+        return waves;
+    }
+
+    /**
+     * Creates this map's waves with nothing spawned yet. Each call returns independent
+     * waves.
+     */
+    public List<Wave> createWaves() {
+        List<Wave> created = new ArrayList<>();
+        for (WaveConfig wave : waves) {
+            created.add(wave.createWave());
+        }
+        return created;
     }
 
     /**
