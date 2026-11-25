@@ -1,0 +1,79 @@
+package com.pvz.builder;
+
+import java.util.List;
+
+import com.pvz.model.board.GameBoard;
+import com.pvz.model.tile.CraterTile;
+import com.pvz.model.tile.GrassTile;
+import com.pvz.model.tile.Tile;
+import com.pvz.model.tile.TileType;
+import com.pvz.model.tile.WaterTile;
+
+/**
+ * Immutable map configuration: terrain, starting sun and pre-planted plants.
+ * Describes how a session starts and is never changed by playing it.
+ */
+public final class GameMap {
+    private final TileType[][] tiles;
+    private final int startingSun;
+    private final List<PrePlanted> prePlanted;
+
+    // Package-private: other packages must create maps through a MapBuilder
+    GameMap(TileType[][] tiles, int startingSun, List<PrePlanted> prePlanted) {
+        this.tiles = new TileType[tiles.length][];
+
+        for (int r = 0; r < tiles.length; r++) {
+            this.tiles[r] = tiles[r].clone();
+        }
+
+        this.startingSun = startingSun;
+        this.prePlanted = List.copyOf(prePlanted);
+    }
+
+    /**
+     * Returns the terrain of a cell.
+     * 
+     * @return Tile type, or null if out of grid bounds.
+     */
+    public TileType getTileType(int row, int col) {
+        if (row < 0 || row >= GameBoard.ROWS || col < 0 || col >= GameBoard.COLS) {
+            return null;
+        }
+        return tiles[row][col];
+    }
+
+    public int getStartingSun() {
+        return startingSun;
+    }
+
+    public List<PrePlanted> getPrePlanted() {
+        return prePlanted;
+    }
+
+    /**
+     * Creates a new board with this map's terrain. Each call returns an independent
+     * board.
+     */
+    public GameBoard createBoard() {
+        GameBoard board = new GameBoard();
+        for (int r = 0; r < GameBoard.ROWS; r++) {
+            for (int c = 0; c < GameBoard.COLS; c++) {
+                board.setTile(r, c, createTile(board, r, c));
+            }
+        }
+        return board;
+    }
+
+    private Tile createTile(GameBoard board, int row, int col) {
+        double x = board.getCellOriginX(col);
+        double y = board.getCellOriginY(row);
+        double w = GameBoard.CELL_WIDTH;
+        double h = GameBoard.CELL_HEIGHT;
+
+        return switch (tiles[row][col]) {
+            case GRASS -> new GrassTile(row, col, x, y, w, h);
+            case WATER -> new WaterTile(row, col, x, y, w, h);
+            case CRATER -> new CraterTile(row, col, x, y, w, h);
+        };
+    }
+}
