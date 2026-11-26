@@ -1,23 +1,37 @@
 package com.pvz.state.game;
 
 import com.pvz.core.GameManager;
+import com.pvz.view.ResultView;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
-import javafx.scene.paint.Color;
-import javafx.scene.text.Font;
-import javafx.scene.text.FontWeight;
-import javafx.scene.text.TextAlignment;
 
 /**
  * State shown when zombies breach the lawn and enter the player's house.
  */
 public class GameOverState implements GameState {
+    private final RunResult result;
+    /** The editor to go back to after a play-test; null in a normal game. */
+    private final GameState practiceReturn;
+    private final ResultView view = new ResultView();
+
+    public GameOverState(RunResult result) {
+        this(result, null);
+    }
+
+    public GameOverState(RunResult result, GameState practiceReturn) {
+        if (result == null) {
+            throw new IllegalArgumentException("Result cannot be null");
+        }
+        this.result = result;
+        this.practiceReturn = practiceReturn;
+    }
 
     @Override
     public void enter() {
-        // Play game over scream / music
+        // Play game over music
+        // TODO(Quang): submit the record here once RecordRepository exists
     }
 
     @Override
@@ -25,37 +39,38 @@ public class GameOverState implements GameState {
 
     @Override
     public void render(GraphicsContext gc) {
-        double width = gc.getCanvas().getWidth();
-        double height = gc.getCanvas().getHeight();
-
-        gc.setFill(Color.web("#0F172A"));
-        gc.fillRect(0, 0, width, height);
-
-        gc.setTextAlign(TextAlignment.CENTER);
-        gc.setFill(Color.web("#EF4444"));
-        gc.setFont(Font.font("Arial", FontWeight.BOLD, 54));
-        gc.fillText("THE ZOMBIES ATE YOUR BRAINS!", width / 2.0, height / 2.0 - 50);
-
-        gc.setFill(Color.web("#E2E8F0"));
-        gc.setFont(Font.font("Arial", FontWeight.NORMAL, 22));
-        gc.fillText("Press [ENTER] to Try Again", width / 2.0, height / 2.0 + 30);
-        gc.fillText("Press [ESC] for Main Menu", width / 2.0, height / 2.0 + 70);
+        view.render(gc, result, "[ENTER] Chơi lại",
+                practiceReturn != null ? "[ESC] Về editor" : "[ESC] Về menu");
     }
 
     @Override
     public void handleMouseClick(MouseEvent event) {
-        GameManager.getInstance().startNewGame(new PlayingState());
+        retry();
     }
 
     @Override
     public void handleKeyPressed(KeyEvent event) {
         if (event.getCode() == KeyCode.ENTER || event.getCode() == KeyCode.SPACE) {
-            GameManager.getInstance().startNewGame(new PlayingState());
+            retry();
         } else if (event.getCode() == KeyCode.ESCAPE) {
-            GameManager.getInstance().changeState(new MenuState());
+            GameManager.getInstance().changeState(
+                    practiceReturn != null ? practiceReturn : new MenuState());
+        }
+    }
+
+    /** Plays the lost map again on a fresh board with its starting sun. */
+    private void retry() {
+        if (practiceReturn != null) {
+            GameManager.getInstance().startPracticeGame(result.map(), practiceReturn);
+        } else {
+            GameManager.getInstance().startNewGame(result.map());
         }
     }
 
     @Override
     public void exit() {}
+
+    public RunResult getResult() {
+        return result;
+    }
 }
