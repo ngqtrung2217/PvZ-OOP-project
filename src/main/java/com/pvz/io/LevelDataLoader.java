@@ -23,8 +23,9 @@ public final class LevelDataLoader {
      * play order. Adding a level means adding its file and one line here.
      */
     static final List<String> CAMPAIGN_FILES = List.of(
-            "level_1_day.json",
-            "level_2_pool.json");
+            "level_1_easy.json",
+            "level_2_medium.json",
+            "level_3_hard.json");
 
     private final MapSerializer serializer;
     private final UserDataPaths paths;

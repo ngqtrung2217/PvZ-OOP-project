@@ -67,7 +67,9 @@ public final class MapEditorController {
         this.validator = new MapValidator(attackPlantIds);
         this.serializer = serializer;
         this.paths = paths;
-        load(director.buildLawnTemplate(newBuilder()));
+        // A new map: all grass, every plant ticked, endless
+        applyDayTemplate();
+        allowedPlants.addAll(this.plantIds);
     }
 
     /** An editor for the real game, saving to ~/.pvz/maps. */
@@ -118,20 +120,22 @@ public final class MapEditorController {
         return n;
     }
 
-    /** Quick template "Sân cỏ". Keeps the name the player typed. */
-    public void applyLawnTemplate() {
-        applyTemplate(director.buildLawnTemplate(newBuilder()));
+    /** Terrain template "Ban ngày" (all grass). Only the terrain changes. */
+    public void applyDayTemplate() {
+        copyTerrain(director.buildDayTemplate(newBuilder()));
     }
 
-    /** Quick template "Bể bơi". Keeps the name the player typed. */
+    /** Terrain template "Bể bơi" (water on rows 2 and 3). Only the terrain changes. */
     public void applyPoolTemplate() {
-        applyTemplate(director.buildPoolTemplate(newBuilder()));
+        copyTerrain(director.buildPoolTemplate(newBuilder()));
     }
 
-    private void applyTemplate(GameMap template) {
-        String typedName = name;
-        load(template);
-        name = typedName;
+    private void copyTerrain(GameMap template) {
+        for (int r = 0; r < GameBoard.ROWS; r++) {
+            for (int c = 0; c < GameBoard.COLS; c++) {
+                tiles[r][c] = template.getTileType(r, c);
+            }
+        }
     }
 
     // ---- Name ----

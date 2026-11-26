@@ -86,7 +86,7 @@ public final class MapEditorView implements GameState {
         addBrush("Nước", TileType.WATER, y + 45);
         addBrush("Hố", TileType.CRATER, y + 90);
 
-        add("Sân cỏ", PANEL_X, 295, PANEL_W, BUTTON_H, controller::applyLawnTemplate);
+        add("Ban ngày", PANEL_X, 295, PANEL_W, BUTTON_H, controller::applyDayTemplate);
         add("Bể bơi", PANEL_X, 340, PANEL_W, BUTTON_H, controller::applyPoolTemplate);
 
         add("−", PANEL_X, 420, 40, BUTTON_H, () -> controller.changeSun(-1));
@@ -346,7 +346,7 @@ public final class MapEditorView implements GameState {
         gc.setFont(Font.font("Arial", FontWeight.BOLD, 14));
         gc.setFill(Color.web("#94A3B8"));
         gc.fillText("ĐỊA HÌNH (vẽ / kéo)", PANEL_X, 115);
-        gc.fillText("MẪU NHANH", PANEL_X, 285);
+        gc.fillText("MẪU ĐỊA HÌNH", PANEL_X, 285);
         gc.fillText("SUN KHỞI ĐẦU", PANEL_X, 410);
         gc.fillText("SỐ TURN", PANEL_X, 490);
         gc.fillText("CÂY ĐƯỢC DÙNG", PANEL_X, PLANT_Y - 6);

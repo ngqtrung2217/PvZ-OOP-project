@@ -34,10 +34,12 @@ class LevelDataLoaderTest {
         assertEquals(LevelDataLoader.CAMPAIGN_FILES.size(), levels.size());
         // If this fails, a level was changed in only one place: regenerate the JSON files
         // from LevelDirector, or update LevelDirector to match the files
-        assertEquals(serializer.toJson(director.buildDayLevel(new CustomMapBuilder(PLANTS))),
+        assertEquals(serializer.toJson(director.buildEasyLevel(new CustomMapBuilder(PLANTS))),
                 serializer.toJson(levels.get(0)));
-        assertEquals(serializer.toJson(director.buildPoolLevel(new CustomMapBuilder(PLANTS))),
+        assertEquals(serializer.toJson(director.buildMediumLevel(new CustomMapBuilder(PLANTS))),
                 serializer.toJson(levels.get(1)));
+        assertEquals(serializer.toJson(director.buildHardLevel(new CustomMapBuilder(PLANTS))),
+                serializer.toJson(levels.get(2)));
         for (GameMap level : levels) {
             assertEquals(MapMode.CAMPAIGN, level.getMode());
         }

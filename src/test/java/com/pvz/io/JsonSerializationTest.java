@@ -64,9 +64,10 @@ class JsonSerializationTest {
     @DisplayName("Every built-in level and template survives save and load unchanged")
     void testRoundTrip() throws Exception {
         List<GameMap> maps = List.of(
-                director.buildDayLevel(newBuilder()),
-                director.buildPoolLevel(newBuilder()),
-                director.buildLawnTemplate(newBuilder()),
+                director.buildEasyLevel(newBuilder()),
+                director.buildMediumLevel(newBuilder()),
+                director.buildHardLevel(newBuilder()),
+                director.buildDayTemplate(newBuilder()),
                 director.buildPoolTemplate(newBuilder()));
 
         for (GameMap original : maps) {
@@ -115,8 +116,8 @@ class JsonSerializationTest {
     @Test
     @DisplayName("Custom files have no waves field; campaign files do")
     void testWavesOnlyInCampaign() {
-        assertFalse(serializer.toJson(director.buildLawnTemplate(newBuilder())).contains("\"waves\""));
-        assertTrue(serializer.toJson(director.buildDayLevel(newBuilder())).contains("\"waves\""));
+        assertFalse(serializer.toJson(director.buildDayTemplate(newBuilder())).contains("\"waves\""));
+        assertTrue(serializer.toJson(director.buildEasyLevel(newBuilder())).contains("\"waves\""));
     }
 
     @Test
@@ -201,8 +202,9 @@ class JsonSerializationTest {
     @Test
     @DisplayName("A campaign file that also sets maxTurns is rejected")
     void testCampaignWithMaxTurns() {
-        String json = serializer.toJson(director.buildDayLevel(newBuilder()))
+        String json = serializer.toJson(director.buildHardLevel(newBuilder()))
                 .replace("\"startingSun\": 50,", "\"startingSun\": 50, \"maxTurns\": 3,");
+        assertTrue(json.contains("\"maxTurns\": 3"), "The edit must have taken effect");
         assertThrows(MapFormatException.class, () -> serializer.fromJson(json));
     }
 }
