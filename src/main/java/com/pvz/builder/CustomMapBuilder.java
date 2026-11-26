@@ -69,7 +69,8 @@ public class CustomMapBuilder implements MapBuilder {
             throw new IllegalArgumentException("Plant list cannot be null");
         }
         for (String id : plantIds) {
-            if (!validPlantIds.contains(id)) {
+            // contains(null) on an immutable set throws instead of returning false
+            if (id == null || !validPlantIds.contains(id)) {
                 throw new IllegalArgumentException("Unknown plant ID: " + id);
             }
         }

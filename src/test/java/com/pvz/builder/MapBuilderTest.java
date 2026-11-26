@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 
@@ -67,6 +68,8 @@ class MapBuilderTest {
         assertThrows(IllegalArgumentException.class, () -> builder.setAllowedPlants(null));
         assertThrows(IllegalArgumentException.class,
                 () -> builder.setAllowedPlants(List.of("PLANT_A", "ABC")));
+        assertThrows(IllegalArgumentException.class,
+                () -> builder.setAllowedPlants(Arrays.asList("PLANT_A", null)));
         // A rejected call must not leave half of the list behind
         assertTrue(builder.build().getAllowedPlants().isEmpty());
     }
