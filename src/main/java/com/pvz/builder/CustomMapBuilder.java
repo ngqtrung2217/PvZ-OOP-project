@@ -2,6 +2,7 @@ package com.pvz.builder;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -11,20 +12,36 @@ import com.pvz.model.tile.TileType;
 import com.pvz.model.zombie.ZombieFactory;
 
 /**
- * Default {@link MapBuilder}. Starts from an all-grass board with the standard sun balance.
+ * Default {@link MapBuilder}. Starts from an unnamed, endless, all-grass board with the
+ * standard sun balance and no plants.
  */
 public class CustomMapBuilder implements MapBuilder {
     private final TileType[][] tiles = new TileType[GameBoard.ROWS][GameBoard.COLS];
-    private final List<PrePlanted> prePlanted = new ArrayList<>();
     private final List<WaveConfig> waves = new ArrayList<>();
     private final Set<String> validPlantIds;
+    private String name = "";
     private int startingSun = GameManager.STARTING_SUN;
+    private List<String> allowedPlants = List.of();
+    private Integer maxTurns = null;
 
+    /**
+     * @param validPlantIds every plant ID the game knows.
+     *                      TODO(An Nguyen): switch to PlantType once model/plant exists.
+     */
     public CustomMapBuilder(Set<String> validPlantIds) {
         this.validPlantIds = Set.copyOf(validPlantIds);
         for (int r = 0; r < GameBoard.ROWS; r++) {
             Arrays.fill(tiles[r], TileType.GRASS);
         }
+    }
+
+    @Override
+    public MapBuilder setName(String name) {
+        if (name == null) {
+            throw new IllegalArgumentException("Name cannot be null");
+        }
+        this.name = name.strip();
+        return this;
     }
 
     @Override
@@ -47,13 +64,26 @@ public class CustomMapBuilder implements MapBuilder {
     }
 
     @Override
-    public MapBuilder addPrePlanted(int row, int col, String plantId) {
-        requireValidCell(row, col);
-        PrePlanted plant = new PrePlanted(row, col, plantId);
-        if (!validPlantIds.contains(plantId)) {
-            throw new IllegalArgumentException("Unknown plant ID: " + plantId);
+    public MapBuilder setAllowedPlants(List<String> plantIds) {
+        if (plantIds == null) {
+            throw new IllegalArgumentException("Plant list cannot be null");
         }
-        prePlanted.add(plant);
+        for (String id : plantIds) {
+            if (!validPlantIds.contains(id)) {
+                throw new IllegalArgumentException("Unknown plant ID: " + id);
+            }
+        }
+        // LinkedHashSet drops duplicates but keeps the seed-bar order
+        this.allowedPlants = List.copyOf(new LinkedHashSet<>(plantIds));
+        return this;
+    }
+
+    @Override
+    public MapBuilder setMaxTurns(Integer turns) {
+        if (turns != null && turns < 1) {
+            throw new IllegalArgumentException("Max turns must be at least 1, or null for endless");
+        }
+        this.maxTurns = turns;
         return this;
     }
 
@@ -71,34 +101,7 @@ public class CustomMapBuilder implements MapBuilder {
 
     @Override
     public GameMap build() {
-        validatePlantCapacity();
-        // TODO(An Nguyen): check allowedTiles / isSupport when plants_spec.json exists
-        return new GameMap(tiles, startingSun, prePlanted, waves);
-    }
-
-    /**
-     * Checked when building because terrain may change after planting.
-     */
-    private void validatePlantCapacity() {
-        int[][] counts = new int[GameBoard.ROWS][GameBoard.COLS];
-        for (PrePlanted plant : prePlanted) {
-            int row = plant.getRow();
-            int col = plant.getCol();
-            counts[row][col]++;
-            if (counts[row][col] > plantCapacity(tiles[row][col])) {
-                throw new IllegalStateException("Too many plants on " + tiles[row][col]
-                        + " cell (" + row + ", " + col + ")");
-            }
-        }
-    }
-
-    /** Water holds two: a supporting plant and the plant standing on it. */
-    private static int plantCapacity(TileType type) {
-        return switch (type) {
-            case GRASS -> 1;
-            case WATER -> 2;
-            case CRATER -> 0;
-        };
+        return new GameMap(name, tiles, startingSun, allowedPlants, maxTurns, waves);
     }
 
     /** Otherwise a bad spawn would only show up in the middle of a game. */

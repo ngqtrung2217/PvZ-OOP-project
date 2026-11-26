@@ -3,6 +3,7 @@ package com.pvz.builder;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -34,12 +35,66 @@ class MapBuilderTest {
     }
 
     @Test
-    @DisplayName("Default map is grass with standard sun and no plants")
+    @DisplayName("Default map is unnamed, endless, grass, standard sun and no plants")
     void testDefaults() {
         GameMap map = builder.build();
+        assertEquals("", map.getName());
         assertEquals(TileType.GRASS, map.getTileType(0, 0));
         assertEquals(GameManager.STARTING_SUN, map.getStartingSun());
-        assertTrue(map.getPrePlanted().isEmpty());
+        assertTrue(map.getAllowedPlants().isEmpty());
+        assertNull(map.getMaxTurns());
+        assertTrue(map.isEndless());
+    }
+
+    @Test
+    @DisplayName("Name is trimmed, blank is allowed, null is rejected")
+    void testName() {
+        assertEquals("Ao giua san", builder.setName("  Ao giua san ").build().getName());
+        assertEquals("", builder.setName("   ").build().getName());
+        assertThrows(IllegalArgumentException.class, () -> builder.setName(null));
+    }
+
+    @Test
+    @DisplayName("Allowed plants keep their order and drop duplicates")
+    void testAllowedPlants() {
+        GameMap map = builder.setAllowedPlants(List.of("PLANT_B", "PLANT_A", "PLANT_B")).build();
+        assertEquals(List.of("PLANT_B", "PLANT_A"), map.getAllowedPlants());
+    }
+
+    @Test
+    @DisplayName("Null lists and unknown plant IDs are rejected")
+    void testInvalidAllowedPlants() {
+        assertThrows(IllegalArgumentException.class, () -> builder.setAllowedPlants(null));
+        assertThrows(IllegalArgumentException.class,
+                () -> builder.setAllowedPlants(List.of("PLANT_A", "ABC")));
+        // A rejected call must not leave half of the list behind
+        assertTrue(builder.build().getAllowedPlants().isEmpty());
+    }
+
+    @Test
+    @DisplayName("Allowed plants cannot be changed through the source list or the map")
+    void testAllowedPlantsAreSnapshot() {
+        List<String> source = new ArrayList<>(List.of("PLANT_A"));
+        GameMap map = builder.setAllowedPlants(source).build();
+
+        source.add("PLANT_B");
+
+        assertEquals(List.of("PLANT_A"), map.getAllowedPlants());
+        assertThrows(UnsupportedOperationException.class,
+                () -> map.getAllowedPlants().add("PLANT_B"));
+    }
+
+    @Test
+    @DisplayName("Max turns accepts a positive count or null for endless")
+    void testMaxTurns() {
+        GameMap limited = builder.setMaxTurns(5).build();
+        assertEquals(5, limited.getMaxTurns());
+        assertFalse(limited.isEndless());
+
+        assertTrue(builder.setMaxTurns(null).build().isEndless());
+
+        assertThrows(IllegalArgumentException.class, () -> builder.setMaxTurns(0));
+        assertThrows(IllegalArgumentException.class, () -> builder.setMaxTurns(-3));
     }
 
     @Test
@@ -54,19 +109,18 @@ class MapBuilderTest {
     @Test
     @DisplayName("Chained steps end up in the built map")
     void testChaining() {
-        GameMap map = builder.setTile(2, 3, TileType.WATER)
+        GameMap map = builder.setName("Pool")
+                .setTile(2, 3, TileType.WATER)
                 .setStartingSun(200)
-                .addPrePlanted(0, 1, "PLANT_A")
+                .setAllowedPlants(List.of("PLANT_A", "SUPPORT_A"))
+                .setMaxTurns(3)
                 .build();
 
+        assertEquals("Pool", map.getName());
         assertEquals(TileType.WATER, map.getTileType(2, 3));
         assertEquals(200, map.getStartingSun());
-        assertEquals(1, map.getPrePlanted().size());
-
-        PrePlanted plant = map.getPrePlanted().get(0);
-        assertEquals(0, plant.getRow());
-        assertEquals(1, plant.getCol());
-        assertEquals("PLANT_A", plant.getPlantId());
+        assertEquals(List.of("PLANT_A", "SUPPORT_A"), map.getAllowedPlants());
+        assertEquals(3, map.getMaxTurns());
     }
 
     @Test
@@ -74,27 +128,6 @@ class MapBuilderTest {
     void testSunLimits() {
         assertThrows(IllegalArgumentException.class, () -> builder.setStartingSun(-1));
         assertEquals(0, builder.setStartingSun(0).build().getStartingSun());
-    }
-
-    @Test
-    @DisplayName("Null and unknown plant IDs are rejected")
-    void testInvalidPlantId() {
-        assertThrows(IllegalArgumentException.class, () -> builder.addPrePlanted(0, 0, null));
-        assertThrows(IllegalArgumentException.class, () -> builder.addPrePlanted(0, 0, "ABC"));
-    }
-
-    @Test
-    @DisplayName("Grass holds at most one plant")
-    void testGrassCapacity() {
-        builder.addPrePlanted(0, 0, "PLANT_A").addPrePlanted(0, 0, "PLANT_B");
-        assertThrows(IllegalStateException.class, () -> builder.build());
-    }
-
-    @Test
-    @DisplayName("A crater rejects plants placed before the terrain changed")
-    void testCraterAfterPlanting() {
-        builder.addPrePlanted(1, 1, "PLANT_A").setTile(1, 1, TileType.CRATER);
-        assertThrows(IllegalStateException.class, () -> builder.build());
     }
 
     @Test
@@ -118,28 +151,15 @@ class MapBuilderTest {
     void testBuiltMapIsSnapshot() {
         GameMap map = builder.build();
 
-        builder.setTile(0, 0, TileType.WATER).addPrePlanted(1, 1, "PLANT_A");
+        builder.setTile(0, 0, TileType.WATER);
 
         assertEquals(TileType.GRASS, map.getTileType(0, 0));
-        assertTrue(map.getPrePlanted().isEmpty());
     }
 
     @Test
     @DisplayName("Null tile type is rejected")
     void testNullTile() {
         assertThrows(IllegalArgumentException.class, () -> builder.setTile(0, 0, null));
-    }
-
-    @Test
-    @DisplayName("Water holds at most two plants")
-    void testWaterCapacity() {
-        builder.setTile(2, 3, TileType.WATER)
-                .addPrePlanted(2, 3, "SUPPORT_A")
-                .addPrePlanted(2, 3, "PLANT_A");
-        assertEquals(2, builder.build().getPrePlanted().size());
-
-        builder.addPrePlanted(2, 3, "PLANT_B");
-        assertThrows(IllegalStateException.class, () -> builder.build());
     }
 
     @Test
