@@ -80,12 +80,15 @@ class LevelSelectViewTest {
         LevelSelectView view = open();
 
         List<LevelSelectView.Entry> entries = view.getEntries();
-        assertEquals(3, entries.size());
-        assertEquals(MapMode.CAMPAIGN, entries.get(0).map().getMode());
-        assertEquals(MapMode.CAMPAIGN, entries.get(1).map().getMode());
-        assertEquals("Ao nha", entries.get(2).map().getName());
-        assertEquals("Vô hạn · 150 Sun", entries.get(2).detail());
-        assertEquals("5 wave · 50 Sun", entries.get(0).detail());
+        assertEquals(4, entries.size());
+        for (int i = 0; i < 3; i++) {
+            assertEquals(MapMode.CAMPAIGN, entries.get(i).map().getMode());
+        }
+        assertEquals("Ban ngày (Dễ)", entries.get(0).map().getName());
+        assertEquals("Bể bơi (Khó)", entries.get(2).map().getName());
+        assertEquals("Ao nha", entries.get(3).map().getName());
+        assertEquals("Vô hạn · 150 Sun", entries.get(3).detail());
+        assertEquals("3 wave · 150 Sun", entries.get(0).detail());
         assertNull(view.getNotice());
     }
 
@@ -95,10 +98,11 @@ class LevelSelectViewTest {
         saveCustom("Ao nha", 175);
         LevelSelectView view = open();
 
-        view.handleKeyPressed(key(KeyCode.DOWN));
-        view.handleKeyPressed(key(KeyCode.DOWN));
+        for (int i = 0; i < 3; i++) {
+            view.handleKeyPressed(key(KeyCode.DOWN));
+        }
         view.handleKeyPressed(key(KeyCode.DOWN)); // already at the end, stays there
-        assertEquals(2, view.getSelected());
+        assertEquals(3, view.getSelected());
 
         view.handleKeyPressed(key(KeyCode.ENTER));
 
@@ -126,7 +130,7 @@ class LevelSelectViewTest {
 
         view.handleMouseClick(click(x, LevelSelectView.LIST_TOP + LevelSelectView.ROW_HEIGHT + 5));
         PlayingState playing = assertInstanceOf(PlayingState.class, manager.getCurrentState());
-        assertTrue(playing.getMap().getName().startsWith("Bể bơi"));
+        assertEquals("Sân hố (Trung bình)", playing.getMap().getName());
     }
 
     @Test
@@ -137,7 +141,7 @@ class LevelSelectViewTest {
 
         LevelSelectView view = open();
 
-        assertEquals(3, view.getEntries().size());
+        assertEquals(4, view.getEntries().size());
         assertEquals("1 file map bị hỏng nên đã bỏ qua", view.getNotice());
     }
 
@@ -148,27 +152,27 @@ class LevelSelectViewTest {
             saveCustom("Map " + (char) ('A' + i), 50);
         }
         LevelSelectView view = open();
-        assertEquals(14, view.getEntries().size());
+        assertEquals(15, view.getEntries().size());
 
-        for (int i = 0; i < 13; i++) {
+        for (int i = 0; i < 14; i++) {
             view.handleKeyPressed(key(KeyCode.DOWN));
         }
 
-        assertEquals(13, view.getSelected());
-        assertEquals(13 - LevelSelectView.VISIBLE_ROWS + 1, view.getFirstVisible());
+        assertEquals(14, view.getSelected());
+        assertEquals(14 - LevelSelectView.VISIBLE_ROWS + 1, view.getFirstVisible());
     }
 
     @Test
     @DisplayName("Re-entering the screen picks up maps saved in the meantime")
     void testReloadOnEnter() throws Exception {
         LevelSelectView view = open();
-        assertEquals(2, view.getEntries().size());
+        assertEquals(3, view.getEntries().size());
 
         saveCustom("Moi", 50);
         manager.changeState(new MenuState());
         manager.changeState(view);
 
-        assertEquals(3, view.getEntries().size());
+        assertEquals(4, view.getEntries().size());
     }
 
     @Test
@@ -182,7 +186,7 @@ class LevelSelectViewTest {
     @Test
     @DisplayName("Result screen progress line depends on the map mode")
     void testResultProgressLine() {
-        GameMap campaign = new LevelDirector().buildDayLevel(new CustomMapBuilder(PLANTS));
+        GameMap campaign = new LevelDirector().buildHardLevel(new CustomMapBuilder(PLANTS));
         GameMap endless = new CustomMapBuilder(PLANTS).build();
         GameMap limited = new CustomMapBuilder(PLANTS).setMaxTurns(4).build();
 

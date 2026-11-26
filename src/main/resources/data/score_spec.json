@@ -1,0 +1,18 @@
+{
+  "killPoints": {
+    "NORMAL": 10,
+    "FLAG": 10,
+    "WATER": 15,
+    "CONEHEAD": 20,
+    "POLE_VAULTING": 25,
+    "BUCKETHEAD": 40
+  },
+  "drownedKillFactor": 0.5,
+  "pointsPerSecond": 1,
+  "turnBonus": 100,
+  "winBonus": 500,
+  "winBonusPerMower": 100,
+  "sunFactorBase": 150,
+  "sunFactorMin": 0.5,
+  "sunFactorMax": 2.0
+}

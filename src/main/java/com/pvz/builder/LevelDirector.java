@@ -8,9 +8,14 @@ import com.pvz.model.tile.TileType;
 
 /**
  * Director of the Builder pattern: knows the steps that make each built-in map and runs
- * them on any {@link MapBuilder}. Makes the two campaign levels, tuned to be very hard,
- * and the two quick templates of the map editor.
- * <p>
+ * them on any {@link MapBuilder}.
+ * <ul>
+ * <li>Campaign: three levels, easy, medium and hard. Difficulty comes from less starting
+ * sun, more and tougher zombies, shorter gaps between them, and terrain that leaves
+ * fewer places to plant.</li>
+ * <li>Custom: two terrain templates for the map editor, "Ban ngày" and "Bể bơi". They set
+ * terrain only; the player picks everything else.</li>
+ * </ul>
  * Pass a fresh builder to each method, because a builder keeps everything set on it.
  */
 public final class LevelDirector {
@@ -26,160 +31,169 @@ public final class LevelDirector {
     public static final List<String> PLANTS_USED =
             List.of(PEASHOOTER, SNOW_PEA, SUNFLOWER, WALL_NUT, CHERRY_BOMB, LILY_PAD);
 
-    private static final int HARD_STARTING_SUN = 50;
+    // ---- Campaign ----
 
     /**
-     * Day level: grass with craters that break up the planting columns. No Snow Pea, so
-     * nothing slows the zombies down. Five waves; waves 3 and 5 are huge waves.
+     * Easy: open grass, 150 sun and only the three basic plants. Three waves of mostly
+     * Normal zombies with long gaps, so a new player can learn to build an economy.
      */
-    public GameMap buildDayLevel(MapBuilder builder) {
-        builder.setName("Ban ngày (Siêu khó)")
-                .setStartingSun(HARD_STARTING_SUN)
-                .setAllowedPlants(List.of(SUNFLOWER, PEASHOOTER, WALL_NUT, CHERRY_BOMB));
+    public GameMap buildEasyLevel(MapBuilder builder) {
+        builder.setName("Ban ngày (Dễ)")
+                .setStartingSun(150)
+                .setAllowedPlants(List.of(SUNFLOWER, PEASHOOTER, WALL_NUT));
 
-        // Craters in column 2 and 5 take away the usual second and third shooter columns
-        builder.setTile(0, 2, TileType.CRATER)
-                .setTile(2, 2, TileType.CRATER)
-                .setTile(4, 2, TileType.CRATER)
-                .setTile(1, 5, TileType.CRATER)
-                .setTile(3, 5, TileType.CRATER);
-
-        // Wave 1: a fast opener on every lane before the economy is running
+        // Wave 1: one zombie at a time, the first only after 20 s
         builder.addWave(wave(false,
-                at("NORMAL", 8.0, 2),
-                at("NORMAL", 12.0, 0, 4),
-                at("NORMAL", 16.0, 1, 3),
-                at("CONEHEAD", 20.0, 2)));
+                at("NORMAL", 20.0, 2),
+                at("NORMAL", 35.0, 1),
+                at("NORMAL", 45.0, 3)));
 
-        // Wave 2: armor and the first vaulters, which jump the first Wall-nut
+        // Wave 2: the first Conehead
         builder.addWave(wave(false,
-                at("CONEHEAD", 2.0, 1, 3),
-                at("POLE_VAULTING", 6.0, 0, 4),
-                at("NORMAL", 9.0, 2),
-                at("CONEHEAD", 12.0, 0, 2, 4)));
+                at("NORMAL", 10.0, 0),
+                at("NORMAL", 18.0, 4),
+                at("CONEHEAD", 26.0, 2),
+                at("NORMAL", 34.0, 1)));
 
-        // Wave 3 (huge): many zombies arrive together on the middle lanes
+        // Wave 3 (huge): a small rush to finish
         builder.addWave(wave(true,
                 at("FLAG", 0.0, 2),
-                at("CONEHEAD", 1.0, 1, 2, 3),
-                at("NORMAL", 2.0, 0, 1, 2, 3, 4),
-                at("POLE_VAULTING", 4.0, 1, 3),
-                at("BUCKETHEAD", 7.0, 2)));
-
-        // Wave 4: heavy armor on the edge lanes, vaulters in the middle
-        builder.addWave(wave(false,
-                at("BUCKETHEAD", 2.0, 0, 4),
-                at("POLE_VAULTING", 4.0, 1, 2, 3),
-                at("CONEHEAD", 7.0, 0, 1, 3, 4),
-                at("BUCKETHEAD", 11.0, 2)));
-
-        // Wave 5 (huge, final): every lane gets armor at once
-        builder.addWave(wave(true,
-                at("FLAG", 0.0, 2),
-                at("BUCKETHEAD", 1.0, 0, 2, 4),
-                at("CONEHEAD", 2.0, 0, 1, 2, 3, 4),
-                at("POLE_VAULTING", 3.0, 1, 3),
-                at("NORMAL", 4.0, 0, 1, 2, 3, 4),
-                at("BUCKETHEAD", 6.0, 1, 3),
-                at("POLE_VAULTING", 8.0, 0, 4)));
+                at("NORMAL", 3.0, 1, 3),
+                at("CONEHEAD", 8.0, 0, 4),
+                at("NORMAL", 12.0, 2)));
 
         return builder.build();
     }
 
     /**
-     * Pool level: rows 2 and 3 are water, so a third of the board needs a LilyPad first.
-     * Craters on the land rows force more plants onto the water. Six waves; waves 3 and 6
-     * are huge waves.
+     * Medium: grass with four craters, 100 sun, Snow Pea and Cherry Bomb unlocked. Four
+     * waves introduce Pole Vaulting and Buckethead zombies.
      */
-    public GameMap buildPoolLevel(MapBuilder builder) {
-        builder.setName("Bể bơi (Siêu khó)")
-                .setStartingSun(HARD_STARTING_SUN)
+    public GameMap buildMediumLevel(MapBuilder builder) {
+        builder.setName("Sân hố (Trung bình)")
+                .setStartingSun(100)
+                .setAllowedPlants(List.of(SUNFLOWER, PEASHOOTER, SNOW_PEA, WALL_NUT,
+                        CHERRY_BOMB));
+
+        // Craters in columns 3 and 6 break up the usual planting rows
+        builder.setTile(1, 3, TileType.CRATER)
+                .setTile(3, 3, TileType.CRATER)
+                .setTile(0, 6, TileType.CRATER)
+                .setTile(4, 6, TileType.CRATER);
+
+        // Wave 1
+        builder.addWave(wave(false,
+                at("NORMAL", 15.0, 2),
+                at("NORMAL", 25.0, 0, 4),
+                at("CONEHEAD", 35.0, 1)));
+
+        // Wave 2: the first vaulter jumps the first plant in its lane
+        builder.addWave(wave(false,
+                at("CONEHEAD", 6.0, 3),
+                at("NORMAL", 12.0, 1, 2),
+                at("POLE_VAULTING", 20.0, 0),
+                at("NORMAL", 26.0, 4)));
+
+        // Wave 3 (huge)
+        builder.addWave(wave(true,
+                at("FLAG", 0.0, 2),
+                at("NORMAL", 3.0, 0, 1, 3, 4),
+                at("CONEHEAD", 6.0, 2),
+                at("POLE_VAULTING", 10.0, 1)));
+
+        // Wave 4 (huge, final): the first Buckethead
+        builder.addWave(wave(true,
+                at("FLAG", 0.0, 1),
+                at("CONEHEAD", 3.0, 0, 2, 4),
+                at("BUCKETHEAD", 8.0, 3),
+                at("POLE_VAULTING", 11.0, 1, 3),
+                at("NORMAL", 14.0, 0, 4)));
+
+        return builder.build();
+    }
+
+    /**
+     * Hard: the pool, two craters and only 50 sun, with every plant. Five waves send
+     * swimmers from the start and armor on every lane at the end.
+     */
+    public GameMap buildHardLevel(MapBuilder builder) {
+        builder.setName("Bể bơi (Khó)")
+                .setStartingSun(50)
                 .setAllowedPlants(List.of(SUNFLOWER, PEASHOOTER, SNOW_PEA, WALL_NUT,
                         CHERRY_BOMB, LILY_PAD));
 
         paintPoolRows(builder);
-        builder.setTile(0, 1, TileType.CRATER)
-                .setTile(1, 4, TileType.CRATER)
-                .setTile(4, 1, TileType.CRATER)
-                .setTile(4, 4, TileType.CRATER);
+        builder.setTile(1, 5, TileType.CRATER)
+                .setTile(4, 2, TileType.CRATER);
 
-        // Wave 1: swimmers right away, before the player can afford LilyPads
+        // Wave 1: swimmers before the player can afford many LilyPads
         builder.addWave(wave(false,
-                at("WATER", 6.0, 2),
-                at("NORMAL", 9.0, 0, 4),
-                at("WATER", 12.0, 3),
-                at("NORMAL", 15.0, 1)));
+                at("WATER", 10.0, 2),
+                at("NORMAL", 16.0, 0),
+                at("WATER", 22.0, 3),
+                at("NORMAL", 28.0, 4)));
 
-        // Wave 2: armor on land while the water lanes keep coming
+        // Wave 2
         builder.addWave(wave(false,
-                at("CONEHEAD", 2.0, 0, 4),
-                at("WATER", 4.0, 2, 3),
-                at("POLE_VAULTING", 7.0, 1),
-                at("WATER", 10.0, 2, 3)));
+                at("CONEHEAD", 4.0, 0),
+                at("WATER", 8.0, 2, 3),
+                at("NORMAL", 12.0, 1),
+                at("POLE_VAULTING", 18.0, 4)));
 
         // Wave 3 (huge)
         builder.addWave(wave(true,
                 at("FLAG", 0.0, 1),
-                at("WATER", 1.0, 2, 3),
-                at("CONEHEAD", 2.0, 0, 1, 4),
-                at("WATER", 4.0, 2, 3),
-                at("POLE_VAULTING", 5.0, 0, 4),
-                at("NORMAL", 6.0, 1, 4)));
+                at("WATER", 2.0, 2, 3),
+                at("CONEHEAD", 4.0, 0, 4),
+                at("NORMAL", 6.0, 1),
+                at("POLE_VAULTING", 9.0, 0)));
 
-        // Wave 4: buckets on land, so the Cherry Bomb is needed in two places at once
+        // Wave 4: a land zombie sent into the water; it swims or drowns
         builder.addWave(wave(false,
-                at("BUCKETHEAD", 2.0, 0, 4),
-                at("WATER", 3.0, 2, 3),
-                at("CONEHEAD", 6.0, 1),
-                at("WATER", 8.0, 2, 3),
-                at("POLE_VAULTING", 10.0, 1, 4)));
-
-        // Wave 5: land zombies sent into the water lanes; some swim, some drown
-        builder.addWave(wave(false,
-                at("CONEHEAD", 2.0, 2, 3),
-                at("BUCKETHEAD", 4.0, 1),
+                at("BUCKETHEAD", 3.0, 1),
                 at("WATER", 5.0, 2, 3),
-                at("POLE_VAULTING", 7.0, 0, 4),
-                at("NORMAL", 9.0, 2, 3)));
+                at("CONEHEAD", 8.0, 2),
+                at("POLE_VAULTING", 10.0, 4),
+                at("NORMAL", 12.0, 3)));
 
-        // Wave 6 (huge, final): every lane, armor everywhere
+        // Wave 5 (huge, final): armor on every land lane
         builder.addWave(wave(true,
                 at("FLAG", 0.0, 0),
                 at("WATER", 1.0, 2, 3),
-                at("BUCKETHEAD", 2.0, 0, 1, 4),
-                at("CONEHEAD", 3.0, 0, 1, 2, 3, 4),
-                at("WATER", 5.0, 2, 3),
-                at("POLE_VAULTING", 6.0, 0, 1, 4),
-                at("BUCKETHEAD", 8.0, 1, 4),
-                at("WATER", 9.0, 2, 3)));
+                at("BUCKETHEAD", 3.0, 0, 4),
+                at("CONEHEAD", 5.0, 1, 2, 3),
+                at("POLE_VAULTING", 8.0, 1, 4),
+                at("WATER", 10.0, 2, 3)));
 
         return builder.build();
     }
 
+    // ---- Custom terrain templates ----
+
     /**
-     * Editor quick template "Sân cỏ": an all-grass custom map with every land plant.
-     * The name is left blank for the player to fill in, and the map is endless.
-     * The builder can still be edited after this call.
+     * Editor template "Ban ngày": an all-grass board. Sets terrain only; name, sun,
+     * plants and turns stay as they are on the builder.
      */
-    public GameMap buildLawnTemplate(MapBuilder builder) {
-        builder.setAllowedPlants(List.of(SUNFLOWER, PEASHOOTER, SNOW_PEA, WALL_NUT,
-                CHERRY_BOMB));
+    public GameMap buildDayTemplate(MapBuilder builder) {
+        for (int r = 0; r < GameBoard.ROWS; r++) {
+            for (int c = 0; c < GameBoard.COLS; c++) {
+                builder.setTile(r, c, TileType.GRASS);
+            }
+        }
         return builder.build();
     }
 
     /**
-     * Editor quick template "Bể bơi": a custom map with water on rows 2 and 3 and every
-     * plant, including LilyPad. The name is left blank and the map is endless.
-     * The builder can still be edited after this call.
+     * Editor template "Bể bơi": grass with water on rows 2 and 3. Sets terrain only, like
+     * {@link #buildDayTemplate(MapBuilder)}.
      */
     public GameMap buildPoolTemplate(MapBuilder builder) {
+        buildDayTemplate(builder);
         paintPoolRows(builder);
-        builder.setAllowedPlants(List.of(SUNFLOWER, PEASHOOTER, SNOW_PEA, WALL_NUT,
-                CHERRY_BOMB, LILY_PAD));
         return builder.build();
     }
 
-    /** Rows 2 and 3 become water; shared by the pool level and the pool template. */
+    /** Rows 2 and 3 become water; shared by the hard level and the pool template. */
     private static void paintPoolRows(MapBuilder builder) {
         for (int c = 0; c < GameBoard.COLS; c++) {
             builder.setTile(2, c, TileType.WATER)

@@ -4,8 +4,17 @@ import com.pvz.builder.GameMap;
 import com.pvz.builder.MapMode;
 import com.pvz.core.GameManager;
 import com.pvz.model.board.GameBoard;
+import java.util.ArrayList;
+import java.util.List;
+
 import com.pvz.model.wave.WaveManager;
 import com.pvz.model.zombie.Zombie;
+import com.pvz.system.collision.CollisionSystem;
+import com.pvz.system.defense.LawnMower;
+import com.pvz.system.event.CombatEventBus;
+import com.pvz.system.score.RunStats;
+import com.pvz.system.score.ScoreCalculator;
+import com.pvz.system.score.ScoreTracker;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
@@ -18,9 +27,13 @@ import javafx.scene.text.TextAlignment;
 /**
  * State active during active combat / lawn defense gameplay.
  * <p>
- * Counts survival time, runs the waves and checks how the game ends (README 3.6):
- * a living zombie reaching the house loses; a campaign level is won once every wave has
- * spawned and no zombie is left.
+ * Counts survival time, runs the waves and lawn mowers, and checks how the game ends
+ * (README 3.6): a living zombie reaching the house loses; a campaign level is won once
+ * every wave has spawned and no zombie is left.
+ * <p>
+ * Kills reach the score only through events: {@link CollisionSystem} publishes
+ * {@code ZombieDeathEvent}s and a {@link ScoreTracker} counts them. The tracker listens
+ * while this state is active, so nothing is counted during a pause.
  */
 public class PlayingState implements GameState {
     /** A living zombie whose left edge passes this x has reached the house. */
@@ -31,7 +44,11 @@ public class PlayingState implements GameState {
     private final GameState practiceReturn;
     private final GameBoard gameBoard;
     private final WaveManager waveManager;
-    private double survivalTime;
+    private final List<LawnMower> mowers = new ArrayList<>();
+    private final CollisionSystem collisions;
+    private final RunStats stats = new RunStats();
+    private final ScoreTracker scoreTracker = new ScoreTracker(stats);
+    private final ScoreCalculator scoreCalculator = ScoreCalculator.createDefault();
     private boolean finished;
     private int selectedRow = -1;
     private int selectedCol = -1;
@@ -57,6 +74,10 @@ public class PlayingState implements GameState {
         this.gameBoard = map.createBoard();
         // TODO(Ngoc Minh): custom maps have no waves; they need EscalatingRandomSpawnPolicy
         this.waveManager = new WaveManager(gameBoard, map.createWaves());
+        this.collisions = new CollisionSystem(CombatEventBus.getInstance());
+        for (int lane = 0; lane < GameBoard.ROWS; lane++) {
+            mowers.add(new LawnMower(lane, gameBoard));
+        }
     }
 
     @Override
@@ -64,6 +85,8 @@ public class PlayingState implements GameState {
         // Lifecycle only: the session is reset by GameManager.startNewGame().
         // PauseState resumes by re-entering this same instance, so resetting here
         // would silently wipe the player's sun on every pause/resume cycle.
+        // Subscribing again on resume is harmless: the bus ignores duplicates.
+        scoreTracker.attach(CombatEventBus.getInstance());
     }
 
     @Override
@@ -72,10 +95,15 @@ public class PlayingState implements GameState {
             return;
         }
         // Only counted here, so time spent paused never adds up (README rule 6)
-        survivalTime += deltaTime;
+        stats.addTime(deltaTime);
         gameBoard.update(deltaTime);
         waveManager.update(deltaTime);
-        // TODO(An Nguyen, Tuan Minh): update plants, projectiles and collisions here
+        // TODO(An Nguyen): update plants, then projectiles, and check projectile and
+        // plant collisions here once model/plant exists
+        collisions.checkLawnMowerZombieCollisions(mowers, waveManager.getActiveZombies());
+        for (LawnMower mower : mowers) {
+            mower.update(deltaTime);
+        }
 
         if (zombieReachedHouse()) {
             finish(RunResult.Outcome.LOST);
@@ -104,8 +132,12 @@ public class PlayingState implements GameState {
 
     private void finish(RunResult.Outcome outcome) {
         finished = true;
-        RunResult result = new RunResult(map, outcome, survivalTime,
-                waveManager.getCurrentWaveIndex(), isPractice());
+        stats.setTurnsCleared(waveManager.getCurrentWaveIndex());
+        stats.setMowersLeft(mowersLeft());
+        stats.setWon(outcome == RunResult.Outcome.WON);
+        RunResult result = new RunResult(map, outcome, stats.getSurvivalSeconds(),
+                stats.getTurnsCleared(), isPractice(), stats.getKillCount(),
+                stats.getDrownedCount(), stats.getMowersLeft(), currentScore());
         GameState next = outcome == RunResult.Outcome.WON
                 ? new VictoryState(result, practiceReturn)
                 : new GameOverState(result, practiceReturn);
@@ -132,6 +164,9 @@ public class PlayingState implements GameState {
             gc.strokeRect(ox, oy, GameBoard.CELL_WIDTH, GameBoard.CELL_HEIGHT);
         }
 
+        for (LawnMower mower : mowers) {
+            mower.render(gc);
+        }
         waveManager.render(gc);
         renderHUD(gc);
     }
@@ -158,7 +193,8 @@ public class PlayingState implements GameState {
         gc.fillText(map.getName(), width / 2.0, 40);
         gc.setFont(Font.font("Arial", FontWeight.NORMAL, 16));
         gc.setFill(Color.web("#D1D5DB"));
-        gc.fillText(progressText() + "   ·   " + formatTime(survivalTime), width / 2.0, 64);
+        gc.fillText(progressText() + "   ·   " + formatTime(stats.getSurvivalSeconds())
+                + "   ·   Điểm: " + currentScore(), width / 2.0, 64);
 
         if (waveManager.isHugeWaveApproaching() && map.getMode() == MapMode.CAMPAIGN) {
             gc.setFill(Color.web("#F87171"));
@@ -217,7 +253,35 @@ public class PlayingState implements GameState {
 
     @Override
     public void exit() {
-        // Stop battle bgm or clean up temporary resources
+        // Stop listening while paused or after the game ends
+        scoreTracker.detach(CombatEventBus.getInstance());
+    }
+
+    private int mowersLeft() {
+        int ready = 0;
+        for (LawnMower mower : mowers) {
+            if (mower.isReady()) {
+                ready++;
+            }
+        }
+        return ready;
+    }
+
+    /** Score so far, using the turns cleared up to now. */
+    public int currentScore() {
+        if (!finished) {
+            stats.setTurnsCleared(waveManager.getCurrentWaveIndex());
+            stats.setMowersLeft(mowersLeft());
+        }
+        return scoreCalculator.score(stats, map.getStartingSun(), !map.isEndless());
+    }
+
+    public List<LawnMower> getMowers() {
+        return List.copyOf(mowers);
+    }
+
+    public RunStats getStats() {
+        return stats;
     }
 
     /** True for an editor play-test. */
@@ -239,6 +303,6 @@ public class PlayingState implements GameState {
 
     /** Seconds played so far, not counting pauses. */
     public double getSurvivalTime() {
-        return survivalTime;
+        return stats.getSurvivalSeconds();
     }
 }

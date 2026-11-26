@@ -143,10 +143,11 @@ class MapEditorViewTest {
         assertFalse(controller.isEndless());
         assertEquals(6, controller.getTurns());
 
+        // Every plant starts ticked, so a click unticks
         int lilyPad = PLANTS.indexOf("LILY_PAD");
         press(MapEditorView.PANEL_X + lilyPad * MapEditorView.PLANT_STEP + 10,
                 MapEditorView.PLANT_Y + 10);
-        assertTrue(controller.isPlantAllowed("LILY_PAD"));
+        assertFalse(controller.isPlantAllowed("LILY_PAD"));
     }
 
     @Test

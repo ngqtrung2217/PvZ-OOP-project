@@ -30,6 +30,8 @@ public abstract class Zombie extends Entity {
     protected double swimSpeed;
     protected boolean hasVaulted = false;
     protected boolean waterZombie = false;
+    /** Spec type such as "NORMAL" or "BUCKETHEAD"; set by ZombieFactory, used for scoring. */
+    private String type = "UNKNOWN";
     protected double slowMultiplier = 1.0;
     protected double slowTimer = 0.0;
 
@@ -302,6 +304,16 @@ public abstract class Zombie extends Entity {
 
     public void setVaulted(boolean hasVaulted) {
         this.hasVaulted = hasVaulted;
+    }
+
+    public String getType() {
+        return type;
+    }
+
+    public void setType(String type) {
+        if (type != null && !type.isBlank()) {
+            this.type = type;
+        }
     }
 
     public boolean isWaterZombie() {

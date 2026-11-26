@@ -1,0 +1,216 @@
+{
+  "name": "Sân hố (Trung bình)",
+  "mode": "CAMPAIGN",
+  "tiles": [
+    [
+      "GRASS",
+      "GRASS",
+      "GRASS",
+      "GRASS",
+      "GRASS",
+      "GRASS",
+      "CRATER",
+      "GRASS",
+      "GRASS"
+    ],
+    [
+      "GRASS",
+      "GRASS",
+      "GRASS",
+      "CRATER",
+      "GRASS",
+      "GRASS",
+      "GRASS",
+      "GRASS",
+      "GRASS"
+    ],
+    [
+      "GRASS",
+      "GRASS",
+      "GRASS",
+      "GRASS",
+      "GRASS",
+      "GRASS",
+      "GRASS",
+      "GRASS",
+      "GRASS"
+    ],
+    [
+      "GRASS",
+      "GRASS",
+      "GRASS",
+      "CRATER",
+      "GRASS",
+      "GRASS",
+      "GRASS",
+      "GRASS",
+      "GRASS"
+    ],
+    [
+      "GRASS",
+      "GRASS",
+      "GRASS",
+      "GRASS",
+      "GRASS",
+      "GRASS",
+      "CRATER",
+      "GRASS",
+      "GRASS"
+    ]
+  ],
+  "startingSun": 100,
+  "allowedPlants": [
+    "SUNFLOWER",
+    "PEASHOOTER",
+    "SNOW_PEA",
+    "WALL_NUT",
+    "CHERRY_BOMB"
+  ],
+  "waves": [
+    {
+      "hugeWave": false,
+      "spawns": [
+        {
+          "zombieType": "NORMAL",
+          "lane": 2,
+          "spawnDelay": 15.0
+        },
+        {
+          "zombieType": "NORMAL",
+          "lane": 0,
+          "spawnDelay": 25.0
+        },
+        {
+          "zombieType": "NORMAL",
+          "lane": 4,
+          "spawnDelay": 25.0
+        },
+        {
+          "zombieType": "CONEHEAD",
+          "lane": 1,
+          "spawnDelay": 35.0
+        }
+      ]
+    },
+    {
+      "hugeWave": false,
+      "spawns": [
+        {
+          "zombieType": "CONEHEAD",
+          "lane": 3,
+          "spawnDelay": 6.0
+        },
+        {
+          "zombieType": "NORMAL",
+          "lane": 1,
+          "spawnDelay": 12.0
+        },
+        {
+          "zombieType": "NORMAL",
+          "lane": 2,
+          "spawnDelay": 12.0
+        },
+        {
+          "zombieType": "POLE_VAULTING",
+          "lane": 0,
+          "spawnDelay": 20.0
+        },
+        {
+          "zombieType": "NORMAL",
+          "lane": 4,
+          "spawnDelay": 26.0
+        }
+      ]
+    },
+    {
+      "hugeWave": true,
+      "spawns": [
+        {
+          "zombieType": "FLAG",
+          "lane": 2,
+          "spawnDelay": 0.0
+        },
+        {
+          "zombieType": "NORMAL",
+          "lane": 0,
+          "spawnDelay": 3.0
+        },
+        {
+          "zombieType": "NORMAL",
+          "lane": 1,
+          "spawnDelay": 3.0
+        },
+        {
+          "zombieType": "NORMAL",
+          "lane": 3,
+          "spawnDelay": 3.0
+        },
+        {
+          "zombieType": "NORMAL",
+          "lane": 4,
+          "spawnDelay": 3.0
+        },
+        {
+          "zombieType": "CONEHEAD",
+          "lane": 2,
+          "spawnDelay": 6.0
+        },
+        {
+          "zombieType": "POLE_VAULTING",
+          "lane": 1,
+          "spawnDelay": 10.0
+        }
+      ]
+    },
+    {
+      "hugeWave": true,
+      "spawns": [
+        {
+          "zombieType": "FLAG",
+          "lane": 1,
+          "spawnDelay": 0.0
+        },
+        {
+          "zombieType": "CONEHEAD",
+          "lane": 0,
+          "spawnDelay": 3.0
+        },
+        {
+          "zombieType": "CONEHEAD",
+          "lane": 2,
+          "spawnDelay": 3.0
+        },
+        {
+          "zombieType": "CONEHEAD",
+          "lane": 4,
+          "spawnDelay": 3.0
+        },
+        {
+          "zombieType": "BUCKETHEAD",
+          "lane": 3,
+          "spawnDelay": 8.0
+        },
+        {
+          "zombieType": "POLE_VAULTING",
+          "lane": 1,
+          "spawnDelay": 11.0
+        },
+        {
+          "zombieType": "POLE_VAULTING",
+          "lane": 3,
+          "spawnDelay": 11.0
+        },
+        {
+          "zombieType": "NORMAL",
+          "lane": 0,
+          "spawnDelay": 14.0
+        },
+        {
+          "zombieType": "NORMAL",
+          "lane": 4,
+          "spawnDelay": 14.0
+        }
+      ]
+    }
+  ]
+}

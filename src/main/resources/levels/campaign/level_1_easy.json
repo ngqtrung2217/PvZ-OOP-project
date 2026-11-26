@@ -1,0 +1,149 @@
+{
+  "name": "Ban ngày (Dễ)",
+  "mode": "CAMPAIGN",
+  "tiles": [
+    [
+      "GRASS",
+      "GRASS",
+      "GRASS",
+      "GRASS",
+      "GRASS",
+      "GRASS",
+      "GRASS",
+      "GRASS",
+      "GRASS"
+    ],
+    [
+      "GRASS",
+      "GRASS",
+      "GRASS",
+      "GRASS",
+      "GRASS",
+      "GRASS",
+      "GRASS",
+      "GRASS",
+      "GRASS"
+    ],
+    [
+      "GRASS",
+      "GRASS",
+      "GRASS",
+      "GRASS",
+      "GRASS",
+      "GRASS",
+      "GRASS",
+      "GRASS",
+      "GRASS"
+    ],
+    [
+      "GRASS",
+      "GRASS",
+      "GRASS",
+      "GRASS",
+      "GRASS",
+      "GRASS",
+      "GRASS",
+      "GRASS",
+      "GRASS"
+    ],
+    [
+      "GRASS",
+      "GRASS",
+      "GRASS",
+      "GRASS",
+      "GRASS",
+      "GRASS",
+      "GRASS",
+      "GRASS",
+      "GRASS"
+    ]
+  ],
+  "startingSun": 150,
+  "allowedPlants": [
+    "SUNFLOWER",
+    "PEASHOOTER",
+    "WALL_NUT"
+  ],
+  "waves": [
+    {
+      "hugeWave": false,
+      "spawns": [
+        {
+          "zombieType": "NORMAL",
+          "lane": 2,
+          "spawnDelay": 20.0
+        },
+        {
+          "zombieType": "NORMAL",
+          "lane": 1,
+          "spawnDelay": 35.0
+        },
+        {
+          "zombieType": "NORMAL",
+          "lane": 3,
+          "spawnDelay": 45.0
+        }
+      ]
+    },
+    {
+      "hugeWave": false,
+      "spawns": [
+        {
+          "zombieType": "NORMAL",
+          "lane": 0,
+          "spawnDelay": 10.0
+        },
+        {
+          "zombieType": "NORMAL",
+          "lane": 4,
+          "spawnDelay": 18.0
+        },
+        {
+          "zombieType": "CONEHEAD",
+          "lane": 2,
+          "spawnDelay": 26.0
+        },
+        {
+          "zombieType": "NORMAL",
+          "lane": 1,
+          "spawnDelay": 34.0
+        }
+      ]
+    },
+    {
+      "hugeWave": true,
+      "spawns": [
+        {
+          "zombieType": "FLAG",
+          "lane": 2,
+          "spawnDelay": 0.0
+        },
+        {
+          "zombieType": "NORMAL",
+          "lane": 1,
+          "spawnDelay": 3.0
+        },
+        {
+          "zombieType": "NORMAL",
+          "lane": 3,
+          "spawnDelay": 3.0
+        },
+        {
+          "zombieType": "CONEHEAD",
+          "lane": 0,
+          "spawnDelay": 8.0
+        },
+        {
+          "zombieType": "CONEHEAD",
+          "lane": 4,
+          "spawnDelay": 8.0
+        },
+        {
+          "zombieType": "NORMAL",
+          "lane": 2,
+          "spawnDelay": 12.0
+        }
+      ]
+    }
+  ]
+}

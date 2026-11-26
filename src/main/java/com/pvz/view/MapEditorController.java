@@ -21,6 +21,7 @@ import com.pvz.io.MapSerializer;
 import com.pvz.io.UserDataPaths;
 import com.pvz.model.board.GameBoard;
 import com.pvz.model.tile.TileType;
+import com.pvz.system.score.ScoreCalculator;
 
 /**
  * Everything the map editor can do, with no drawing and no JavaFX, so it can be tested on
@@ -37,10 +38,7 @@ public final class MapEditorController {
     public static final int MAX_NAME_LENGTH = 40;
     private static final int DEFAULT_TURNS = 5;
 
-    // TODO(Tuan Minh): read these from score_spec.json once ScoreCalculator exists
-    private static final double SUN_FACTOR_BASE = 150.0;
-    private static final double SUN_FACTOR_MIN = 0.5;
-    private static final double SUN_FACTOR_MAX = 2.0;
+    private final ScoreCalculator scoreCalculator = ScoreCalculator.createDefault();
 
     private final List<String> plantIds;
     private final MapSerializer serializer;
@@ -67,7 +65,9 @@ public final class MapEditorController {
         this.validator = new MapValidator(attackPlantIds);
         this.serializer = serializer;
         this.paths = paths;
-        load(director.buildLawnTemplate(newBuilder()));
+        // A new map: all grass, every plant ticked, endless
+        applyDayTemplate();
+        allowedPlants.addAll(this.plantIds);
     }
 
     /** An editor for the real game, saving to ~/.pvz/maps. */
@@ -118,20 +118,22 @@ public final class MapEditorController {
         return n;
     }
 
-    /** Quick template "Sân cỏ". Keeps the name the player typed. */
-    public void applyLawnTemplate() {
-        applyTemplate(director.buildLawnTemplate(newBuilder()));
+    /** Terrain template "Ban ngày" (all grass). Only the terrain changes. */
+    public void applyDayTemplate() {
+        copyTerrain(director.buildDayTemplate(newBuilder()));
     }
 
-    /** Quick template "Bể bơi". Keeps the name the player typed. */
+    /** Terrain template "Bể bơi" (water on rows 2 and 3). Only the terrain changes. */
     public void applyPoolTemplate() {
-        applyTemplate(director.buildPoolTemplate(newBuilder()));
+        copyTerrain(director.buildPoolTemplate(newBuilder()));
     }
 
-    private void applyTemplate(GameMap template) {
-        String typedName = name;
-        load(template);
-        name = typedName;
+    private void copyTerrain(GameMap template) {
+        for (int r = 0; r < GameBoard.ROWS; r++) {
+            for (int c = 0; c < GameBoard.COLS; c++) {
+                tiles[r][c] = template.getTileType(r, c);
+            }
+        }
     }
 
     // ---- Name ----
@@ -173,11 +175,9 @@ public final class MapEditorController {
         return startingSun;
     }
 
-    /** Score multiplier for this sun (README 3.7): clamp(150 / sun, 0.5, 2.0). */
+    /** Score multiplier for this sun (README 3.7), from score_spec.json. */
     public double getSunMultiplier() {
-        // 150 / 0 is Infinity in double arithmetic, which the clamp turns into 2.0
-        double factor = SUN_FACTOR_BASE / startingSun;
-        return Math.max(SUN_FACTOR_MIN, Math.min(SUN_FACTOR_MAX, factor));
+        return scoreCalculator.sunMultiplier(startingSun);
     }
 
     public void togglePlant(String plantId) {

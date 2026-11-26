@@ -48,14 +48,13 @@ class MapEditorControllerTest {
     }
 
     @Test
-    @DisplayName("Starts as the lawn template: all grass, land plants, endless, no name")
+    @DisplayName("A new map is all grass, every plant ticked, endless, no name")
     void testDefaults() {
         assertEquals(GameBoard.ROWS * GameBoard.COLS, editor.count(TileType.GRASS));
         assertEquals("", editor.getName());
         assertEquals(GameManager.STARTING_SUN, editor.getStartingSun());
         assertTrue(editor.isEndless());
-        assertTrue(editor.isPlantAllowed("PEASHOOTER"));
-        assertFalse(editor.isPlantAllowed("LILY_PAD"));
+        assertEquals(PLANTS, editor.getAllowedPlants());
         // Only the name is missing
         assertEquals(List.of(MapIssue.MISSING_NAME), editor.validate().getErrors());
     }
@@ -74,17 +73,28 @@ class MapEditorControllerTest {
     }
 
     @Test
-    @DisplayName("Templates replace terrain and plants but keep the typed name")
-    void testTemplatesKeepName() {
+    @DisplayName("Templates change the terrain only; every other setting is kept")
+    void testTemplatesOnlyChangeTerrain() {
         editor.setName("Ao cua toi");
+        editor.changeSun(2);
+        editor.togglePlant("SNOW_PEA");
+        editor.changeTurns(1);
+        editor.setBrush(TileType.CRATER);
+        editor.paint(0, 0);
+        List<String> plants = editor.getAllowedPlants();
+
         editor.applyPoolTemplate();
 
-        assertEquals("Ao cua toi", editor.getName());
         assertEquals(2 * GameBoard.COLS, editor.count(TileType.WATER));
-        assertTrue(editor.isPlantAllowed("LILY_PAD"));
+        assertEquals(0, editor.count(TileType.CRATER), "Painted terrain is replaced");
+        assertEquals("Ao cua toi", editor.getName());
+        assertEquals(100, editor.getStartingSun());
+        assertEquals(plants, editor.getAllowedPlants());
+        assertFalse(editor.isEndless());
+        assertEquals(6, editor.getTurns());
 
-        editor.applyLawnTemplate();
-        assertEquals(0, editor.count(TileType.WATER));
+        editor.applyDayTemplate();
+        assertEquals(GameBoard.ROWS * GameBoard.COLS, editor.count(TileType.GRASS));
         assertEquals("Ao cua toi", editor.getName());
     }
 
@@ -137,8 +147,11 @@ class MapEditorControllerTest {
         editor.togglePlant("PEASHOOTER");
         assertFalse(editor.isPlantAllowed("PEASHOOTER"));
         editor.togglePlant("LILY_PAD");
+        assertFalse(editor.isPlantAllowed("LILY_PAD"));
+        editor.togglePlant("LILY_PAD");
         editor.togglePlant("PEASHOOTER");
 
+        // Ticked last, yet Peashooter is back in its seed-bar place
         assertEquals(PLANTS, editor.getAllowedPlants());
         assertThrows(IllegalArgumentException.class, () -> editor.togglePlant("CACTUS"));
     }
