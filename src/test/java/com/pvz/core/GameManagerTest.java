@@ -1,15 +1,19 @@
 package com.pvz.core;
 
+import java.nio.file.Path;
+import java.util.Set;
+
 import com.pvz.builder.CustomMapBuilder;
 import com.pvz.builder.GameMap;
+import com.pvz.io.RecordRepository;
 import com.pvz.model.tile.TileType;
 import com.pvz.model.tile.WaterTile;
 import com.pvz.state.game.GameOverState;
-import com.pvz.state.game.RunResult;
 import com.pvz.state.game.GameState;
 import com.pvz.state.game.MenuState;
 import com.pvz.state.game.PauseState;
 import com.pvz.state.game.PlayingState;
+import com.pvz.state.game.RunResult;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
@@ -17,8 +21,7 @@ import javafx.scene.input.MouseEvent;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-
-import java.util.Set;
+import org.junit.jupiter.api.io.TempDir;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -32,9 +35,14 @@ class GameManagerTest {
 
     private GameManager manager;
 
+    /** End screens save records here instead of ~/.pvz. */
+    @TempDir
+    Path tempDir;
+
     @BeforeEach
     void setUp() {
         manager = GameManager.getInstance();
+        manager.setRecordRepository(new RecordRepository(tempDir.resolve("records.json")));
         manager.startNewGame(defaultMap());
     }
 

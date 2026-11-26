@@ -8,10 +8,12 @@ import com.pvz.builder.MapIssue;
 import com.pvz.builder.ValidationResult;
 import com.pvz.core.GameManager;
 import com.pvz.io.LevelDataLoader;
+import com.pvz.io.RunRecord;
 import com.pvz.model.board.GameBoard;
 import com.pvz.model.tile.TileType;
 import com.pvz.state.game.GameState;
 import com.pvz.state.game.MenuState;
+import com.pvz.state.game.PlayingState;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
@@ -55,6 +57,8 @@ public final class MapEditorView implements GameState {
     static final double DIALOG_W = 500;
     static final double DIALOG_ROW_H = 40;
     static final int DIALOG_ROWS = 10;
+    /** Left edge of the records box; it fills the space right of the name field. */
+    static final double RECORDS_X = NAME_X + NAME_W + 16;
 
     private final MapEditorController controller;
     private final List<Button> buttons = new ArrayList<>();
@@ -150,6 +154,7 @@ public final class MapEditorView implements GameState {
     public void enter() {
         // Keeps every edit: this screen is re-entered after a play-test
         painting = false;
+        controller.refreshRecords();
     }
 
     @Override
@@ -335,10 +340,39 @@ public final class MapEditorView implements GameState {
             gc.fillText(name + (showCaret ? "|" : ""), NAME_X + 14, NAME_Y + 29);
         }
 
-        gc.setTextAlign(TextAlignment.RIGHT);
-        gc.setFont(Font.font("Arial", FontWeight.NORMAL, 14));
+        renderLayoutRecords(gc, width);
+    }
+
+    /** Box "Kỷ lục bố cục này" with the layout's top 3, top right above the board. */
+    private void renderLayoutRecords(GraphicsContext gc, double width) {
+        double x = RECORDS_X;
+        double w = width - 20 - x;
+        gc.setFill(Color.web("#334155"));
+        gc.fillRoundRect(x, 8, w, 84, 8, 8);
+
+        gc.setTextAlign(TextAlignment.LEFT);
+        gc.setFont(Font.font("Arial", FontWeight.BOLD, 12));
         gc.setFill(Color.web("#94A3B8"));
-        gc.fillText("[1][2][3] Đổi địa hình   [ESC] Menu", width - 20, 56);
+        gc.fillText("KỶ LỤC BỐ CỤC NÀY", x + 10, 24);
+
+        List<RunRecord> top = controller.getLayoutRecords(3);
+        gc.setFont(Font.font("Arial", FontWeight.NORMAL, 13));
+        if (top.isEmpty()) {
+            gc.setFill(Color.web("#64748B"));
+            gc.fillText("Chưa có kỷ lục", x + 10, 46);
+        }
+        for (int i = 0; i < top.size(); i++) {
+            RunRecord record = top.get(i);
+            gc.setFill(Color.web("#E2E8F0"));
+            gc.fillText(recordLine(i + 1, record), x + 10, 44 + i * 18);
+        }
+    }
+
+    /** "1. 1170 điểm · 2:00 · Thắng". */
+    static String recordLine(int rank, RunRecord record) {
+        return rank + ". " + record.score() + " điểm · "
+                + PlayingState.formatTime(record.survivalSeconds()) + " · "
+                + (record.won() ? "Thắng" : "Thua");
     }
 
     private static void renderPanelLabels(GraphicsContext gc) {
@@ -426,6 +460,13 @@ public final class MapEditorView implements GameState {
         gc.fillText(String.format("Ô nước: %d   ·   Ô hố: %d   ·   Hệ số điểm: ×%.2f",
                 controller.count(TileType.WATER), controller.count(TileType.CRATER),
                 controller.getSunMultiplier()), PANEL_X, 678);
+
+        gc.setTextAlign(TextAlignment.RIGHT);
+        gc.setFont(Font.font("Arial", FontWeight.NORMAL, 13));
+        gc.setFill(Color.web("#94A3B8"));
+        gc.fillText("[1][2][3] Đổi địa hình   [ESC] Menu", PLAY_X + ACTION_W, 678);
+        gc.setTextAlign(TextAlignment.LEFT);
+        gc.setFont(Font.font("Arial", FontWeight.NORMAL, 15));
 
         List<String> lines = new ArrayList<>();
         List<Color> colors = new ArrayList<>();

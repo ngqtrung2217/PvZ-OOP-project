@@ -258,4 +258,25 @@ class MapEditorControllerTest {
         assertFalse(editor.isEndless());
         assertEquals(7, editor.getTurns());
     }
+
+    @Test
+    @DisplayName("Layout records follow the layout and refresh after a new game")
+    void testLayoutRecords() throws Exception {
+        com.pvz.io.RecordRepository repo = new com.pvz.io.RecordRepository(paths.getRecordsFile());
+        String layout = com.pvz.io.MapIdHasher.hash(editor.buildMap());
+        assertTrue(editor.getLayoutRecords(3).isEmpty());
+
+        repo.submit(layout, new com.pvz.io.RunRecord(50, null, 1, 30, false, 2, 0, 120,
+                java.time.Instant.parse("2026-11-27T10:00:00Z")));
+        assertTrue(editor.getLayoutRecords(3).isEmpty(), "Cached until refreshed");
+        editor.refreshRecords();
+        assertEquals(120, editor.getLayoutRecords(3).get(0).score());
+
+        // Sun and turns are not part of the layout; terrain is
+        editor.changeSun(4);
+        assertEquals(1, editor.getLayoutRecords(3).size());
+        editor.setBrush(TileType.CRATER);
+        editor.paint(4, 8);
+        assertTrue(editor.getLayoutRecords(3).isEmpty());
+    }
 }

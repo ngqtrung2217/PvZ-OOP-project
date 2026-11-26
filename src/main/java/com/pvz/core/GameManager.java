@@ -1,6 +1,7 @@
 package com.pvz.core;
 
 import com.pvz.builder.GameMap;
+import com.pvz.io.RecordRepository;
 import com.pvz.state.game.GameState;
 import com.pvz.state.game.PlayingState;
 
@@ -15,6 +16,7 @@ public class GameManager {
 
     private GameState currentState;
     private GameMap currentMap;
+    private RecordRepository recordRepository;
     private int sun = STARTING_SUN;
 
     private GameManager() {
@@ -116,5 +118,18 @@ public class GameManager {
      */
     public GameMap getCurrentMap() {
         return currentMap;
+    }
+
+    /** Where end screens save records; ~/.pvz/records.json unless replaced. */
+    public RecordRepository getRecordRepository() {
+        if (recordRepository == null) {
+            recordRepository = RecordRepository.inUserHome();
+        }
+        return recordRepository;
+    }
+
+    /** Replaces the record store, so tests write to a temporary file instead of ~/.pvz. */
+    public void setRecordRepository(RecordRepository recordRepository) {
+        this.recordRepository = recordRepository;
     }
 }

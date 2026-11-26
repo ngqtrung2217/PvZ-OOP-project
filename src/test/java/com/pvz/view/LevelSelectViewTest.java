@@ -197,4 +197,22 @@ class LevelSelectViewTest {
         assertEquals("Chế độ: 4 turn", ResultView.progressLine(
                 new RunResult(limited, RunResult.Outcome.LOST, 10, 0)));
     }
+
+    @Test
+    @DisplayName("Result screen status line: new record, not ranked, practice, save error")
+    void testResultStatusLine() {
+        GameMap map = new CustomMapBuilder(PLANTS).build();
+        RunResult real = new RunResult(map, RunResult.Outcome.LOST, 10, 0);
+        RunResult practice = new RunResult(map, RunResult.Outcome.LOST, 10, 0, true);
+
+        assertEquals("Kỷ lục mới! Hạng 3", ResultView.statusLine(real,
+                new com.pvz.state.game.RecordSubmission(3, List.of(), null)));
+        assertEquals("Chưa vào top 10", ResultView.statusLine(real,
+                new com.pvz.state.game.RecordSubmission(-1, List.of(), null)));
+        assertEquals("Chơi thử – không lưu kỷ lục", ResultView.statusLine(practice,
+                new com.pvz.state.game.RecordSubmission(-1, List.of(), null)));
+        assertEquals("Không lưu được", ResultView.statusLine(real,
+                new com.pvz.state.game.RecordSubmission(-1, List.of(), "Không lưu được")));
+        assertNull(ResultView.statusLine(real, null));
+    }
 }

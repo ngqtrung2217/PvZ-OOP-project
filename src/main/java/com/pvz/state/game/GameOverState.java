@@ -15,6 +15,8 @@ public class GameOverState implements GameState {
     /** The editor to go back to after a play-test; null in a normal game. */
     private final GameState practiceReturn;
     private final ResultView view = new ResultView();
+    /** Filled once on enter(); the record is saved only then. */
+    private RecordSubmission records;
 
     public GameOverState(RunResult result) {
         this(result, null);
@@ -31,7 +33,10 @@ public class GameOverState implements GameState {
     @Override
     public void enter() {
         // Play game over music
-        // TODO(Quang): submit the record here once RecordRepository exists
+        if (records == null) {
+            records = RecordSubmission.submit(result,
+                    GameManager.getInstance().getRecordRepository());
+        }
     }
 
     @Override
@@ -39,7 +44,7 @@ public class GameOverState implements GameState {
 
     @Override
     public void render(GraphicsContext gc) {
-        view.render(gc, result, "[ENTER] Chơi lại",
+        view.render(gc, result, records, "[ENTER] Chơi lại",
                 practiceReturn != null ? "[ESC] Về editor" : "[ESC] Về menu");
     }
 
@@ -72,5 +77,10 @@ public class GameOverState implements GameState {
 
     public RunResult getResult() {
         return result;
+    }
+
+    /** Rank and top table, or null before the state has been entered. */
+    public RecordSubmission getRecords() {
+        return records;
     }
 }

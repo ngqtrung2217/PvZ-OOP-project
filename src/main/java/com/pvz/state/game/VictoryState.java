@@ -17,6 +17,8 @@ public class VictoryState implements GameState {
     /** The editor to go back to after a play-test; null in a normal game. */
     private final GameState practiceReturn;
     private final ResultView view = new ResultView();
+    /** Filled once on enter(); the record is saved only then. */
+    private RecordSubmission records;
 
     public VictoryState(RunResult result) {
         this(result, null);
@@ -33,7 +35,10 @@ public class VictoryState implements GameState {
     @Override
     public void enter() {
         // Play victory jingle
-        // TODO(Quang): submit the record here once RecordRepository exists
+        if (records == null) {
+            records = RecordSubmission.submit(result,
+                    GameManager.getInstance().getRecordRepository());
+        }
     }
 
     @Override
@@ -42,9 +47,9 @@ public class VictoryState implements GameState {
     @Override
     public void render(GraphicsContext gc) {
         if (practiceReturn != null) {
-            view.render(gc, result, "[ENTER] / [ESC] Về editor");
+            view.render(gc, result, records, "[ENTER] / [ESC] Về editor");
         } else {
-            view.render(gc, result, "[ENTER] Chọn màn khác", "[ESC] Về menu");
+            view.render(gc, result, records, "[ENTER] Chọn màn khác", "[ESC] Về menu");
         }
     }
 
@@ -75,5 +80,10 @@ public class VictoryState implements GameState {
 
     public RunResult getResult() {
         return result;
+    }
+
+    /** Rank and top table, or null before the state has been entered. */
+    public RecordSubmission getRecords() {
+        return records;
     }
 }

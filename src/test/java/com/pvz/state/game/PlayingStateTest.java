@@ -5,18 +5,21 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Set;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import com.pvz.builder.CustomMapBuilder;
 import com.pvz.builder.GameMap;
 import com.pvz.builder.SpawnConfig;
 import com.pvz.builder.WaveConfig;
 import com.pvz.core.GameManager;
+import com.pvz.io.RecordRepository;
 import com.pvz.model.zombie.Zombie;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
@@ -32,9 +35,14 @@ class PlayingStateTest {
 
     private GameManager manager;
 
+    /** End screens save records here instead of ~/.pvz. */
+    @TempDir
+    Path tempDir;
+
     @BeforeEach
     void setUp() {
         manager = GameManager.getInstance();
+        manager.setRecordRepository(new RecordRepository(tempDir.resolve("records.json")));
         manager.startNewGame(new CustomMapBuilder(Set.of()).build());
     }
 
