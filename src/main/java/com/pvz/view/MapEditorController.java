@@ -17,7 +17,10 @@ import com.pvz.builder.MapValidator;
 import com.pvz.builder.ValidationResult;
 import com.pvz.core.GameManager;
 import com.pvz.io.LevelDataLoader;
+import com.pvz.io.MapIdHasher;
 import com.pvz.io.MapSerializer;
+import com.pvz.io.RecordRepository;
+import com.pvz.io.RunRecord;
 import com.pvz.io.UserDataPaths;
 import com.pvz.model.board.GameBoard;
 import com.pvz.model.tile.TileType;
@@ -45,6 +48,10 @@ public final class MapEditorController {
     private final UserDataPaths paths;
     private final MapValidator validator;
     private final LevelDirector director = new LevelDirector();
+    private final RecordRepository records;
+    /** Layout the cached records belong to; recomputed when the layout changes. */
+    private String recordsLayoutId;
+    private List<RunRecord> layoutRecords = List.of();
 
     private final TileType[][] tiles = new TileType[GameBoard.ROWS][GameBoard.COLS];
     private final Set<String> allowedPlants = new LinkedHashSet<>();
@@ -65,6 +72,7 @@ public final class MapEditorController {
         this.validator = new MapValidator(attackPlantIds);
         this.serializer = serializer;
         this.paths = paths;
+        this.records = new RecordRepository(paths.getRecordsFile());
         // A new map: all grass, every plant ticked, endless
         applyDayTemplate();
         allowedPlants.addAll(this.plantIds);
@@ -315,6 +323,25 @@ public final class MapEditorController {
     }
 
     /** Last result of save or open, shown under the board; null if there is none. */
+    /**
+     * Best records of the layout being edited (terrain + plants), best first. The file
+     * is read again only when the layout changes or after {@link #refreshRecords()}, so
+     * this is cheap to call every frame.
+     */
+    public List<RunRecord> getLayoutRecords(int limit) {
+        String layoutId = MapIdHasher.hash(buildMap());
+        if (!layoutId.equals(recordsLayoutId)) {
+            recordsLayoutId = layoutId;
+            layoutRecords = records.top(layoutId, RecordRepository.MAX_PER_LAYOUT);
+        }
+        return layoutRecords.subList(0, Math.min(Math.max(limit, 0), layoutRecords.size()));
+    }
+
+    /** Forgets cached records, for example after a game may have added one. */
+    public void refreshRecords() {
+        recordsLayoutId = null;
+    }
+
     public String getMessage() {
         return message;
     }

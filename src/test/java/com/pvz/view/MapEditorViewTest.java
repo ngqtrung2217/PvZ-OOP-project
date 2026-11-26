@@ -19,6 +19,7 @@ import com.pvz.builder.CustomMapBuilder;
 import com.pvz.builder.LevelDirector;
 import com.pvz.core.GameManager;
 import com.pvz.io.MapSerializer;
+import com.pvz.io.RecordRepository;
 import com.pvz.io.UserDataPaths;
 import com.pvz.model.board.GameBoard;
 import com.pvz.model.tile.TileType;
@@ -48,10 +49,11 @@ class MapEditorViewTest {
     @BeforeEach
     void setUp() {
         MapSerializer serializer = new MapSerializer(Set.copyOf(PLANTS));
-        controller = new MapEditorController(PLANTS, Set.of("PEASHOOTER"), serializer,
-                new UserDataPaths(root));
+        UserDataPaths paths = new UserDataPaths(root);
+        controller = new MapEditorController(PLANTS, Set.of("PEASHOOTER"), serializer, paths);
         view = new MapEditorView(controller);
         manager = GameManager.getInstance();
+        manager.setRecordRepository(new RecordRepository(paths.getRecordsFile()));
         manager.startNewGame(new CustomMapBuilder(Set.of()).build());
         manager.changeState(view);
     }
