@@ -18,10 +18,38 @@ public class InputManager {
             }
         });
 
+        canvas.setOnMousePressed(event -> {
+            GameState currentState = GameManager.getInstance().getCurrentState();
+            if (currentState != null) {
+                currentState.handleMousePressed(event);
+            }
+        });
+
+        canvas.setOnMouseDragged(event -> {
+            GameState currentState = GameManager.getInstance().getCurrentState();
+            if (currentState != null) {
+                currentState.handleMouseDragged(event);
+            }
+        });
+
+        canvas.setOnMouseReleased(event -> {
+            GameState currentState = GameManager.getInstance().getCurrentState();
+            if (currentState != null) {
+                currentState.handleMouseReleased(event);
+            }
+        });
+
         scene.setOnKeyPressed(event -> {
             GameState currentState = GameManager.getInstance().getCurrentState();
             if (currentState != null) {
                 currentState.handleKeyPressed(event);
+            }
+        });
+
+        scene.setOnKeyTyped(event -> {
+            GameState currentState = GameManager.getInstance().getCurrentState();
+            if (currentState != null) {
+                currentState.handleKeyTyped(event);
             }
         });
     }

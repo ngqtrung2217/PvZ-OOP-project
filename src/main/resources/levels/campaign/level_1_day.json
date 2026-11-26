@@ -1,0 +1,375 @@
+{
+  "name": "Ban ngày (Siêu khó)",
+  "mode": "CAMPAIGN",
+  "tiles": [
+    [
+      "GRASS",
+      "GRASS",
+      "CRATER",
+      "GRASS",
+      "GRASS",
+      "GRASS",
+      "GRASS",
+      "GRASS",
+      "GRASS"
+    ],
+    [
+      "GRASS",
+      "GRASS",
+      "GRASS",
+      "GRASS",
+      "GRASS",
+      "CRATER",
+      "GRASS",
+      "GRASS",
+      "GRASS"
+    ],
+    [
+      "GRASS",
+      "GRASS",
+      "CRATER",
+      "GRASS",
+      "GRASS",
+      "GRASS",
+      "GRASS",
+      "GRASS",
+      "GRASS"
+    ],
+    [
+      "GRASS",
+      "GRASS",
+      "GRASS",
+      "GRASS",
+      "GRASS",
+      "CRATER",
+      "GRASS",
+      "GRASS",
+      "GRASS"
+    ],
+    [
+      "GRASS",
+      "GRASS",
+      "CRATER",
+      "GRASS",
+      "GRASS",
+      "GRASS",
+      "GRASS",
+      "GRASS",
+      "GRASS"
+    ]
+  ],
+  "startingSun": 50,
+  "allowedPlants": [
+    "SUNFLOWER",
+    "PEASHOOTER",
+    "WALL_NUT",
+    "CHERRY_BOMB"
+  ],
+  "waves": [
+    {
+      "hugeWave": false,
+      "spawns": [
+        {
+          "zombieType": "NORMAL",
+          "lane": 2,
+          "spawnDelay": 8.0
+        },
+        {
+          "zombieType": "NORMAL",
+          "lane": 0,
+          "spawnDelay": 12.0
+        },
+        {
+          "zombieType": "NORMAL",
+          "lane": 4,
+          "spawnDelay": 12.0
+        },
+        {
+          "zombieType": "NORMAL",
+          "lane": 1,
+          "spawnDelay": 16.0
+        },
+        {
+          "zombieType": "NORMAL",
+          "lane": 3,
+          "spawnDelay": 16.0
+        },
+        {
+          "zombieType": "CONEHEAD",
+          "lane": 2,
+          "spawnDelay": 20.0
+        }
+      ]
+    },
+    {
+      "hugeWave": false,
+      "spawns": [
+        {
+          "zombieType": "CONEHEAD",
+          "lane": 1,
+          "spawnDelay": 2.0
+        },
+        {
+          "zombieType": "CONEHEAD",
+          "lane": 3,
+          "spawnDelay": 2.0
+        },
+        {
+          "zombieType": "POLE_VAULTING",
+          "lane": 0,
+          "spawnDelay": 6.0
+        },
+        {
+          "zombieType": "POLE_VAULTING",
+          "lane": 4,
+          "spawnDelay": 6.0
+        },
+        {
+          "zombieType": "NORMAL",
+          "lane": 2,
+          "spawnDelay": 9.0
+        },
+        {
+          "zombieType": "CONEHEAD",
+          "lane": 0,
+          "spawnDelay": 12.0
+        },
+        {
+          "zombieType": "CONEHEAD",
+          "lane": 2,
+          "spawnDelay": 12.0
+        },
+        {
+          "zombieType": "CONEHEAD",
+          "lane": 4,
+          "spawnDelay": 12.0
+        }
+      ]
+    },
+    {
+      "hugeWave": true,
+      "spawns": [
+        {
+          "zombieType": "FLAG",
+          "lane": 2,
+          "spawnDelay": 0.0
+        },
+        {
+          "zombieType": "CONEHEAD",
+          "lane": 1,
+          "spawnDelay": 1.0
+        },
+        {
+          "zombieType": "CONEHEAD",
+          "lane": 2,
+          "spawnDelay": 1.0
+        },
+        {
+          "zombieType": "CONEHEAD",
+          "lane": 3,
+          "spawnDelay": 1.0
+        },
+        {
+          "zombieType": "NORMAL",
+          "lane": 0,
+          "spawnDelay": 2.0
+        },
+        {
+          "zombieType": "NORMAL",
+          "lane": 1,
+          "spawnDelay": 2.0
+        },
+        {
+          "zombieType": "NORMAL",
+          "lane": 2,
+          "spawnDelay": 2.0
+        },
+        {
+          "zombieType": "NORMAL",
+          "lane": 3,
+          "spawnDelay": 2.0
+        },
+        {
+          "zombieType": "NORMAL",
+          "lane": 4,
+          "spawnDelay": 2.0
+        },
+        {
+          "zombieType": "POLE_VAULTING",
+          "lane": 1,
+          "spawnDelay": 4.0
+        },
+        {
+          "zombieType": "POLE_VAULTING",
+          "lane": 3,
+          "spawnDelay": 4.0
+        },
+        {
+          "zombieType": "BUCKETHEAD",
+          "lane": 2,
+          "spawnDelay": 7.0
+        }
+      ]
+    },
+    {
+      "hugeWave": false,
+      "spawns": [
+        {
+          "zombieType": "BUCKETHEAD",
+          "lane": 0,
+          "spawnDelay": 2.0
+        },
+        {
+          "zombieType": "BUCKETHEAD",
+          "lane": 4,
+          "spawnDelay": 2.0
+        },
+        {
+          "zombieType": "POLE_VAULTING",
+          "lane": 1,
+          "spawnDelay": 4.0
+        },
+        {
+          "zombieType": "POLE_VAULTING",
+          "lane": 2,
+          "spawnDelay": 4.0
+        },
+        {
+          "zombieType": "POLE_VAULTING",
+          "lane": 3,
+          "spawnDelay": 4.0
+        },
+        {
+          "zombieType": "CONEHEAD",
+          "lane": 0,
+          "spawnDelay": 7.0
+        },
+        {
+          "zombieType": "CONEHEAD",
+          "lane": 1,
+          "spawnDelay": 7.0
+        },
+        {
+          "zombieType": "CONEHEAD",
+          "lane": 3,
+          "spawnDelay": 7.0
+        },
+        {
+          "zombieType": "CONEHEAD",
+          "lane": 4,
+          "spawnDelay": 7.0
+        },
+        {
+          "zombieType": "BUCKETHEAD",
+          "lane": 2,
+          "spawnDelay": 11.0
+        }
+      ]
+    },
+    {
+      "hugeWave": true,
+      "spawns": [
+        {
+          "zombieType": "FLAG",
+          "lane": 2,
+          "spawnDelay": 0.0
+        },
+        {
+          "zombieType": "BUCKETHEAD",
+          "lane": 0,
+          "spawnDelay": 1.0
+        },
+        {
+          "zombieType": "BUCKETHEAD",
+          "lane": 2,
+          "spawnDelay": 1.0
+        },
+        {
+          "zombieType": "BUCKETHEAD",
+          "lane": 4,
+          "spawnDelay": 1.0
+        },
+        {
+          "zombieType": "CONEHEAD",
+          "lane": 0,
+          "spawnDelay": 2.0
+        },
+        {
+          "zombieType": "CONEHEAD",
+          "lane": 1,
+          "spawnDelay": 2.0
+        },
+        {
+          "zombieType": "CONEHEAD",
+          "lane": 2,
+          "spawnDelay": 2.0
+        },
+        {
+          "zombieType": "CONEHEAD",
+          "lane": 3,
+          "spawnDelay": 2.0
+        },
+        {
+          "zombieType": "CONEHEAD",
+          "lane": 4,
+          "spawnDelay": 2.0
+        },
+        {
+          "zombieType": "POLE_VAULTING",
+          "lane": 1,
+          "spawnDelay": 3.0
+        },
+        {
+          "zombieType": "POLE_VAULTING",
+          "lane": 3,
+          "spawnDelay": 3.0
+        },
+        {
+          "zombieType": "NORMAL",
+          "lane": 0,
+          "spawnDelay": 4.0
+        },
+        {
+          "zombieType": "NORMAL",
+          "lane": 1,
+          "spawnDelay": 4.0
+        },
+        {
+          "zombieType": "NORMAL",
+          "lane": 2,
+          "spawnDelay": 4.0
+        },
+        {
+          "zombieType": "NORMAL",
+          "lane": 3,
+          "spawnDelay": 4.0
+        },
+        {
+          "zombieType": "NORMAL",
+          "lane": 4,
+          "spawnDelay": 4.0
+        },
+        {
+          "zombieType": "BUCKETHEAD",
+          "lane": 1,
+          "spawnDelay": 6.0
+        },
+        {
+          "zombieType": "BUCKETHEAD",
+          "lane": 3,
+          "spawnDelay": 6.0
+        },
+        {
+          "zombieType": "POLE_VAULTING",
+          "lane": 0,
+          "spawnDelay": 8.0
+        },
+        {
+          "zombieType": "POLE_VAULTING",
+          "lane": 4,
+          "spawnDelay": 8.0
+        }
+      ]
+    }
+  ]
+}

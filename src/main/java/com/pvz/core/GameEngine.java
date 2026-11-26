@@ -47,7 +47,8 @@ public final class GameEngine {
     }
 
     /**
-     * Clears canvas and renders the current state.
+     * Renders the current state. Does not clear the canvas: every state paints its
+     * own full background first.
      */
     public void render() {
         GameState currentState = GameManager.getInstance().getCurrentState();

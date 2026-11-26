@@ -12,18 +12,22 @@ import com.pvz.model.tile.WaterTile;
 import com.pvz.model.wave.Wave;
 
 /**
- * Immutable map configuration: terrain, starting sun, pre-planted plants and waves.
- * Describes how a session starts and is never changed by playing it.
+ * Immutable map configuration: name, terrain, starting sun, allowed plants, number of
+ * turns and scripted waves. Describes how a session starts and is never changed by
+ * playing it.
  */
 public final class GameMap {
+    private final String name;
     private final TileType[][] tiles;
     private final int startingSun;
-    private final List<PrePlanted> prePlanted;
+    private final List<String> allowedPlants;
+    private final Integer maxTurns; // null = endless
     private final List<WaveConfig> waves;
 
     // Package-private: other packages must create maps through a MapBuilder
-    GameMap(TileType[][] tiles, int startingSun, List<PrePlanted> prePlanted,
-            List<WaveConfig> waves) {
+    GameMap(String name, TileType[][] tiles, int startingSun, List<String> allowedPlants,
+            Integer maxTurns, List<WaveConfig> waves) {
+        this.name = name;
         this.tiles = new TileType[tiles.length][];
 
         for (int r = 0; r < tiles.length; r++) {
@@ -31,8 +35,36 @@ public final class GameMap {
         }
 
         this.startingSun = startingSun;
-        this.prePlanted = List.copyOf(prePlanted);
+        this.allowedPlants = List.copyOf(allowedPlants);
+        this.maxTurns = maxTurns;
         this.waves = List.copyOf(waves);
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    /** Plants offered in the seed bar, in order. The list cannot be modified. */
+    public List<String> getAllowedPlants() {
+        return allowedPlants;
+    }
+
+    /** @return Number of turns to survive, or null for endless. */
+    public Integer getMaxTurns() {
+        return maxTurns;
+    }
+
+    /**
+     * A custom map only stores how many turns to survive. Zombies then come from
+     * spawn_spec.json, so a map with scripted waves is a campaign level.
+     */
+    public MapMode getMode() {
+        return waves.isEmpty() ? MapMode.CUSTOM : MapMode.CAMPAIGN;
+    }
+
+    /** @return true for a custom map without a turn limit. A campaign ends after its waves. */
+    public boolean isEndless() {
+        return getMode() == MapMode.CUSTOM && maxTurns == null;
     }
 
     /**
@@ -49,10 +81,6 @@ public final class GameMap {
 
     public int getStartingSun() {
         return startingSun;
-    }
-
-    public List<PrePlanted> getPrePlanted() {
-        return prePlanted;
     }
 
     public List<WaveConfig> getWaves() {

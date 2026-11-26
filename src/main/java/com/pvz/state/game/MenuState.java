@@ -1,7 +1,11 @@
 package com.pvz.state.game;
 
 import com.pvz.core.GameManager;
+import com.pvz.io.LevelDataLoader;
 import com.pvz.view.GameCanvas;
+import com.pvz.view.LevelSelectView;
+import com.pvz.view.MapEditorController;
+import com.pvz.view.MapEditorView;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
@@ -18,6 +22,8 @@ public class MenuState implements GameState {
     private static final double BUTTON_WIDTH = 260.0;
     private static final double BUTTON_HEIGHT = 55.0;
     private static final double BUTTON_TOP_OFFSET = 30.0;
+    /** Distance from the top of START to the top of MAP EDITOR. */
+    private static final double EDITOR_BUTTON_GAP = 75.0;
 
     /** Screen Y of the button's top edge; both render and hit-testing share it. */
     private static double buttonY(double canvasHeight) {
@@ -63,10 +69,17 @@ public class MenuState implements GameState {
         gc.setFont(Font.font("Arial", FontWeight.BOLD, 20));
         gc.fillText("START GAME", width / 2.0, btnY + 35);
 
+        // Map editor button, below START
+        double editorY = btnY + EDITOR_BUTTON_GAP;
+        gc.setFill(Color.web("#3B82F6"));
+        gc.fillRoundRect(btnX, editorY, BUTTON_WIDTH, BUTTON_HEIGHT, 12, 12);
+        gc.setFill(Color.WHITE);
+        gc.fillText("MAP EDITOR", width / 2.0, editorY + 35);
+
         // Hint text
         gc.setFont(Font.font("Arial", FontWeight.NORMAL, 14));
         gc.setFill(Color.web("#94A3B8"));
-        gc.fillText("Click button or press ENTER to Play", width / 2.0, height - 60);
+        gc.fillText("[ENTER] Play   ·   [E] Map Editor", width / 2.0, height - 60);
     }
 
     @Override
@@ -78,18 +91,33 @@ public class MenuState implements GameState {
 
         double btnX = (canvasW - BUTTON_WIDTH) / 2.0;
         double btnY = buttonY(canvasH);
+        boolean insideX = mx >= btnX && mx <= btnX + BUTTON_WIDTH;
 
-        if (mx >= btnX && mx <= btnX + BUTTON_WIDTH
-                && my >= btnY && my <= btnY + BUTTON_HEIGHT) {
-            GameManager.getInstance().startNewGame(new PlayingState());
+        if (insideX && my >= btnY && my <= btnY + BUTTON_HEIGHT) {
+            openLevelSelect();
+        } else if (insideX && my >= btnY + EDITOR_BUTTON_GAP
+                && my <= btnY + EDITOR_BUTTON_GAP + BUTTON_HEIGHT) {
+            openMapEditor();
         }
     }
 
     @Override
     public void handleKeyPressed(KeyEvent event) {
         if (event.getCode() == KeyCode.ENTER || event.getCode() == KeyCode.SPACE) {
-            GameManager.getInstance().startNewGame(new PlayingState());
+            openLevelSelect();
+        } else if (event.getCode() == KeyCode.E) {
+            openMapEditor();
         }
+    }
+
+    private static void openMapEditor() {
+        GameManager.getInstance().changeState(
+                new MapEditorView(MapEditorController.createDefault()));
+    }
+
+    /** START opens the level-select screen. */
+    private static void openLevelSelect() {
+        GameManager.getInstance().changeState(new LevelSelectView(LevelDataLoader.createDefault()));
     }
 
     @Override

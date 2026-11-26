@@ -1,23 +1,39 @@
 package com.pvz.state.game;
 
 import com.pvz.core.GameManager;
+import com.pvz.io.LevelDataLoader;
+import com.pvz.view.LevelSelectView;
+import com.pvz.view.ResultView;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
-import javafx.scene.paint.Color;
-import javafx.scene.text.Font;
-import javafx.scene.text.FontWeight;
-import javafx.scene.text.TextAlignment;
 
 /**
  * State displayed when player defeats all waves and wins the level.
  */
 public class VictoryState implements GameState {
+    private final RunResult result;
+    /** The editor to go back to after a play-test; null in a normal game. */
+    private final GameState practiceReturn;
+    private final ResultView view = new ResultView();
+
+    public VictoryState(RunResult result) {
+        this(result, null);
+    }
+
+    public VictoryState(RunResult result, GameState practiceReturn) {
+        if (result == null) {
+            throw new IllegalArgumentException("Result cannot be null");
+        }
+        this.result = result;
+        this.practiceReturn = practiceReturn;
+    }
 
     @Override
     public void enter() {
         // Play victory jingle
+        // TODO(Quang): submit the record here once RecordRepository exists
     }
 
     @Override
@@ -25,38 +41,39 @@ public class VictoryState implements GameState {
 
     @Override
     public void render(GraphicsContext gc) {
-        double width = gc.getCanvas().getWidth();
-        double height = gc.getCanvas().getHeight();
-
-        gc.setFill(Color.web("#064E3B"));
-        gc.fillRect(0, 0, width, height);
-
-        gc.setTextAlign(TextAlignment.CENTER);
-        gc.setFill(Color.web("#34D399"));
-        gc.setFont(Font.font("Arial", FontWeight.BOLD, 56));
-        gc.fillText("VICTORY!", width / 2.0, height / 2.0 - 50);
-
-        gc.setFont(Font.font("Arial", FontWeight.NORMAL, 22));
-        gc.setFill(Color.WHITE);
-        gc.fillText("You successfully defended your lawn!", width / 2.0, height / 2.0 + 10);
-
-        gc.setFont(Font.font("Arial", FontWeight.NORMAL, 18));
-        gc.setFill(Color.web("#A7F3D0"));
-        gc.fillText("Press [ENTER] or [ESC] to Return to Menu", width / 2.0, height / 2.0 + 70);
-    }
-
-    @Override
-    public void handleMouseClick(MouseEvent event) {
-        GameManager.getInstance().changeState(new MenuState());
-    }
-
-    @Override
-    public void handleKeyPressed(KeyEvent event) {
-        if (event.getCode() == KeyCode.ENTER || event.getCode() == KeyCode.ESCAPE) {
-            GameManager.getInstance().changeState(new MenuState());
+        if (practiceReturn != null) {
+            view.render(gc, result, "[ENTER] / [ESC] Về editor");
+        } else {
+            view.render(gc, result, "[ENTER] Chọn màn khác", "[ESC] Về menu");
         }
     }
 
     @Override
+    public void handleMouseClick(MouseEvent event) {
+        next();
+    }
+
+    @Override
+    public void handleKeyPressed(KeyEvent event) {
+        if (event.getCode() == KeyCode.ENTER || event.getCode() == KeyCode.SPACE) {
+            next();
+        } else if (event.getCode() == KeyCode.ESCAPE) {
+            GameManager.getInstance().changeState(
+                    practiceReturn != null ? practiceReturn : new MenuState());
+        }
+    }
+
+    /** Back to the editor after a play-test, otherwise on to the level list. */
+    private void next() {
+        GameManager.getInstance().changeState(practiceReturn != null
+                ? practiceReturn
+                : new LevelSelectView(LevelDataLoader.createDefault()));
+    }
+
+    @Override
     public void exit() {}
+
+    public RunResult getResult() {
+        return result;
+    }
 }

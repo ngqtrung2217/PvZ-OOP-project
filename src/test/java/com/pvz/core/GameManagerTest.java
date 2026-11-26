@@ -1,5 +1,11 @@
 package com.pvz.core;
 
+import com.pvz.builder.CustomMapBuilder;
+import com.pvz.builder.GameMap;
+import com.pvz.model.tile.TileType;
+import com.pvz.model.tile.WaterTile;
+import com.pvz.state.game.GameOverState;
+import com.pvz.state.game.RunResult;
 import com.pvz.state.game.GameState;
 import com.pvz.state.game.MenuState;
 import com.pvz.state.game.PauseState;
@@ -11,6 +17,8 @@ import javafx.scene.input.MouseEvent;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -27,7 +35,56 @@ class GameManagerTest {
     @BeforeEach
     void setUp() {
         manager = GameManager.getInstance();
-        manager.startNewGame(new PlayingState());
+        manager.startNewGame(defaultMap());
+    }
+
+    /** An all-grass map with the default starting sun. */
+    private static GameMap defaultMap() {
+        return new CustomMapBuilder(Set.of()).build();
+    }
+
+    @Test
+    @DisplayName("A new game uses the map's starting sun and terrain")
+    void testStartNewGameLoadsMap() {
+        GameMap map = new CustomMapBuilder(Set.of())
+                .setStartingSun(175)
+                .setTile(1, 3, TileType.WATER)
+                .build();
+
+        manager.startNewGame(map);
+
+        assertEquals(175, manager.getSun());
+        assertSame(map, manager.getCurrentMap());
+        PlayingState playing = assertInstanceOf(PlayingState.class, manager.getCurrentState());
+        assertSame(map, playing.getMap());
+        assertInstanceOf(WaterTile.class, playing.getGameBoard().getTile(1, 3));
+    }
+
+    @Test
+    @DisplayName("Retry after game over replays the same map on a fresh board and sun")
+    void testRetryReplaysSameMap() {
+        GameMap map = new CustomMapBuilder(Set.of()).setStartingSun(120).build();
+        manager.startNewGame(map);
+        PlayingState first = (PlayingState) manager.getCurrentState();
+        manager.addSun(300);
+
+        manager.changeState(new GameOverState(
+                new RunResult(map, RunResult.Outcome.LOST, 12.0, 0)));
+        manager.getCurrentState().handleKeyPressed(key(KeyCode.ENTER));
+
+        PlayingState retry = assertInstanceOf(PlayingState.class, manager.getCurrentState());
+        assertNotSame(first, retry);
+        assertNotSame(first.getGameBoard(), retry.getGameBoard());
+        assertSame(map, retry.getMap());
+        assertEquals(120, manager.getSun());
+    }
+
+    @Test
+    @DisplayName("A null map is rejected and leaves the session alone")
+    void testNullMapRejected() {
+        GameState before = manager.getCurrentState();
+        assertThrows(IllegalArgumentException.class, () -> manager.startNewGame(null));
+        assertSame(before, manager.getCurrentState());
     }
 
     /** Builds a synthetic key-press event for the given key. */
@@ -77,7 +134,7 @@ class GameManagerTest {
         manager.addSun(500);
         assertNotEquals(GameManager.STARTING_SUN, manager.getSun());
 
-        manager.startNewGame(new PlayingState());
+        manager.startNewGame(defaultMap());
         assertEquals(GameManager.STARTING_SUN, manager.getSun());
     }
 
