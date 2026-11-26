@@ -2,6 +2,8 @@ package com.pvz.model.zombie;
 
 import com.pvz.model.base.Entity;
 import com.pvz.model.board.GameBoard;
+import com.pvz.model.zombie.state.DeadState;
+import com.pvz.model.zombie.state.DrowningState;
 import com.pvz.model.zombie.state.VaultingState;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.paint.Color;
@@ -36,6 +38,13 @@ public class PoleVaultingZombie extends Zombie {
     @Override
     public void onCollideWithTarget(Entity target, boolean isTallObstacle) {
         if (target == null || !target.isAlive()) {
+            return;
+        }
+        if (currentState instanceof DeadState || currentState instanceof DrowningState) {
+            return;
+        }
+        if (isOnWater() && !canSwim()) {
+            changeState(new DrowningState());
             return;
         }
 

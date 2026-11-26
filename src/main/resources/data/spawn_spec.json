@@ -1,0 +1,15 @@
+{
+  "gracePeriod": 5.0,
+  "T0": 6.0,
+  "T_min": 1.2,
+  "decay": 0.92,
+  "maxActiveZombies": 20,
+  "zombiesPerTurn": 8,
+  "spawnPool": [
+    "NORMAL",
+    "CONEHEAD",
+    "BUCKETHEAD",
+    "POLE_VAULTING",
+    "WATER"
+  ]
+}

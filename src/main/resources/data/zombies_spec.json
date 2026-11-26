@@ -8,7 +8,8 @@
     "attackDamage": 25,
     "width": 50.0,
     "height": 90.0,
-    "colorHex": "#4A7C59"
+    "colorHex": "#4A7C59",
+    "drownChance": 0.8
   },
   {
     "type": "FLAG",
@@ -19,7 +20,8 @@
     "attackDamage": 25,
     "width": 50.0,
     "height": 90.0,
-    "colorHex": "#5A8C69"
+    "colorHex": "#5A8C69",
+    "drownChance": 0.7
   },
   {
     "type": "CONEHEAD",
@@ -30,7 +32,8 @@
     "attackDamage": 25,
     "width": 50.0,
     "height": 90.0,
-    "colorHex": "#4A7C59"
+    "colorHex": "#4A7C59",
+    "drownChance": 0.85
   },
   {
     "type": "BUCKETHEAD",
@@ -41,7 +44,8 @@
     "attackDamage": 25,
     "width": 50.0,
     "height": 90.0,
-    "colorHex": "#4A7C59"
+    "colorHex": "#4A7C59",
+    "drownChance": 0.95
   },
   {
     "type": "POLE_VAULTING",
@@ -52,7 +56,8 @@
     "attackDamage": 25,
     "width": 50.0,
     "height": 90.0,
-    "colorHex": "#3D6647"
+    "colorHex": "#3D6647",
+    "drownChance": 0.5
   },
   {
     "type": "WATER",
@@ -63,6 +68,7 @@
     "attackDamage": 25,
     "width": 50.0,
     "height": 90.0,
-    "colorHex": "#2E5E4E"
+    "colorHex": "#2E5E4E",
+    "drownChance": 0.0
   }
 ]

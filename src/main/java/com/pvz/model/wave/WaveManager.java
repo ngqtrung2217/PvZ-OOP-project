@@ -9,31 +9,41 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Random;
 
 /**
- * Orchestrates wave-based zombie spawning and lifecycle management.
- * Dispatches wave entries, updates active entities, and prunes dead zombies safely.
+ * Orchestrates wave-based zombie spawning and lifecycle management via a {@link SpawnPolicy}.
+ * Dispatches spawns from the configured strategy, updates active entities, and prunes dead zombies safely.
  */
 public class WaveManager {
     private final GameBoard board;
-    private final List<Wave> waves;
+    private final SpawnPolicy spawnPolicy;
+    private final ZombieFactory zombieFactory;
     private final List<Zombie> activeZombies;
 
-    private int currentWaveIndex;
-    private double waveElapsedTime;
-    private boolean hugeWaveFlag;
-
     public WaveManager(GameBoard board) {
-        this(board, createDefaultLevelWaves());
+        this(board, new ScriptedSpawnPolicy(createDefaultLevelWaves()), new Random());
     }
 
     public WaveManager(GameBoard board, List<Wave> waves) {
+        this(board, new ScriptedSpawnPolicy(waves), new Random());
+    }
+
+    public WaveManager(GameBoard board, List<Wave> waves, Random random) {
+        this(board, new ScriptedSpawnPolicy(waves), random);
+    }
+
+    public WaveManager(GameBoard board, SpawnPolicy spawnPolicy) {
+        this(board, spawnPolicy, new Random());
+    }
+
+    public WaveManager(GameBoard board, SpawnPolicy spawnPolicy, Random random) {
         this.board = board;
-        this.waves = waves != null ? new ArrayList<>(waves) : new ArrayList<>();
+        this.spawnPolicy = spawnPolicy != null
+                ? spawnPolicy
+                : new ScriptedSpawnPolicy(createDefaultLevelWaves());
+        this.zombieFactory = new ZombieFactory(random != null ? random : new Random());
         this.activeZombies = new ArrayList<>();
-        this.currentWaveIndex = 0;
-        this.waveElapsedTime = 0.0;
-        this.hugeWaveFlag = false;
     }
 
     /**
@@ -72,24 +82,15 @@ public class WaveManager {
     }
 
     /**
-     * Advances the wave spawner and updates active zombies per frame.
+     * Advances the spawn policy and updates active zombies per frame.
      *
      * @param deltaTime Elapsed frame time in seconds.
      */
     public void update(double deltaTime) {
-        if (currentWaveIndex < waves.size()) {
-            Wave currentWave = waves.get(currentWaveIndex);
-            hugeWaveFlag = currentWave.isHugeWave();
-            waveElapsedTime += deltaTime;
-
-            // 1. Spawn entries whose delay has elapsed
-            for (WaveEntry entry : currentWave.getEntries()) {
-                if (!entry.isSpawned() && waveElapsedTime >= entry.getSpawnDelay()) {
-                    Zombie zombie = ZombieFactory.createZombie(entry.getZombieType(), entry.getLane(), board);
-                    activeZombies.add(zombie);
-                    entry.setSpawned(true);
-                }
-            }
+        // 1. Delegate spawning to the injected SpawnPolicy
+        List<Zombie> newlySpawned = spawnPolicy.update(deltaTime, board, activeZombies, zombieFactory);
+        if (newlySpawned != null && !newlySpawned.isEmpty()) {
+            activeZombies.addAll(newlySpawned);
         }
 
         // 2. Update active zombies
@@ -106,15 +107,8 @@ public class WaveManager {
             }
         }
 
-        // 4. Advance to next wave if current wave has finished spawning and all zombies are cleared
-        if (currentWaveIndex < waves.size()) {
-            Wave currentWave = waves.get(currentWaveIndex);
-            if (currentWave.isAllSpawned() && activeZombies.isEmpty()) {
-                currentWaveIndex++;
-                waveElapsedTime = 0.0;
-                hugeWaveFlag = (currentWaveIndex < waves.size() && waves.get(currentWaveIndex).isHugeWave());
-            }
-        }
+        // 4. Notify policy after pruning so scripted waves can advance immediately
+        spawnPolicy.afterPrune(activeZombies);
     }
 
     /**
@@ -137,40 +131,41 @@ public class WaveManager {
     }
 
     public int getCurrentWaveIndex() {
-        return currentWaveIndex;
+        return spawnPolicy.getCurrentWaveIndex();
     }
 
     public int getTotalWaves() {
-        return waves.size();
+        return spawnPolicy.getTotalWaves();
     }
 
     public boolean isHugeWaveApproaching() {
-        if (currentWaveIndex < waves.size()) {
-            return waves.get(currentWaveIndex).isHugeWave();
-        }
-        return hugeWaveFlag;
+        return spawnPolicy.isHugeWaveApproaching();
     }
 
     public boolean isAllWavesCleared() {
-        return currentWaveIndex >= waves.size() && activeZombies.isEmpty();
+        return spawnPolicy.isAllWavesCleared(activeZombies);
     }
 
     public double getProgressRatio() {
-        if (waves.isEmpty() || isAllWavesCleared()) {
-            return 1.0;
-        }
-        return Math.min(1.0, Math.max(0.0, (double) currentWaveIndex / waves.size()));
+        return spawnPolicy.getProgressRatio(activeZombies);
     }
 
     public double getWaveElapsedTime() {
-        return waveElapsedTime;
+        return spawnPolicy.getWaveElapsedTime();
     }
 
     public GameBoard getBoard() {
         return board;
     }
 
+    public SpawnPolicy getSpawnPolicy() {
+        return spawnPolicy;
+    }
+
     public List<Wave> getWaves() {
-        return Collections.unmodifiableList(waves);
+        if (spawnPolicy instanceof ScriptedSpawnPolicy scripted) {
+            return scripted.getWaves();
+        }
+        return Collections.emptyList();
     }
 }

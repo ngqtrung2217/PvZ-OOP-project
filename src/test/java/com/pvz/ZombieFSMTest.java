@@ -2,18 +2,27 @@ package com.pvz;
 
 import com.pvz.model.base.Entity;
 import com.pvz.model.board.GameBoard;
+import com.pvz.model.board.TerrainQuery;
 import com.pvz.model.tile.TileType;
 import com.pvz.model.tile.WaterTile;
+import com.pvz.model.wave.EscalatingRandomSpawnPolicy;
+import com.pvz.model.wave.SpawnSpec;
 import com.pvz.model.wave.Wave;
 import com.pvz.model.wave.WaveManager;
 import com.pvz.model.zombie.*;
 import com.pvz.model.zombie.state.*;
+import com.pvz.system.event.CombatEventBus;
+import com.pvz.system.event.CombatListener;
+import com.pvz.system.event.ZombieDeathEvent;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Random;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -314,5 +323,173 @@ public class ZombieFSMTest {
         assertFalse(defaultManager.getWaves().get(0).isHugeWave());
         assertFalse(defaultManager.getWaves().get(1).isHugeWave());
         assertTrue(defaultManager.getWaves().get(2).isHugeWave());
+    }
+
+    @Test
+    @DisplayName("Kịch bản 9: Tung xúc xắc canSwim bằng Random seed cố định & phân nhánh SwimmingState vs DrowningState (kiểm tra nước trước cây)")
+    void testScenario9_CanSwimRollAndWaterFirstCheck() {
+        // Dùng seed cố định tìm roll < 0.8 (chết đuối) và roll >= 0.8 (biết bơi)
+        Random fixedSeed1 = new Random(42L);
+        double firstRoll = new Random(42L).nextDouble(); // ~0.7275 < 0.8 -> canSwim = false
+        assertTrue(firstRoll < 0.8, "Expected seed 42 to roll < 0.8 for NORMAL drownChance");
+
+        Zombie drowningZombie = ZombieFactory.createZombie("NORMAL", 0, board, fixedSeed1);
+        assertFalse(drowningZombie.canSwim());
+
+        // Tìm seed cho roll >= 0.8 -> canSwim = true
+        long swimSeed = -1L;
+        for (long s = 1L; s < 100_000L; s += 7919L) {
+            if (new Random(s).nextDouble() >= 0.8) {
+                swimSeed = s;
+                break;
+            }
+        }
+        assertTrue(swimSeed != -1L && new Random(swimSeed).nextDouble() >= 0.8);
+        Zombie swimmingZombie = ZombieFactory.createZombie("NORMAL", 0, board, new Random(swimSeed));
+        assertTrue(swimmingZombie.canSwim());
+
+        // WaterZombie luôn có canSwim = true bất kể seed
+        Zombie waterZombie = ZombieFactory.createZombie("WATER", 0, board, new Random(42L));
+        assertTrue(waterZombie.canSwim());
+
+        // Lắng nghe sự kiện ZombieDeathEvent(DROWNED)
+        AtomicReference<ZombieDeathEvent> drownedEvent = new AtomicReference<>();
+        CombatListener<ZombieDeathEvent> listener = drownedEvent::set;
+        CombatEventBus.getInstance().subscribe(ZombieDeathEvent.class, listener);
+
+        try {
+            // Đặt ô nước tại lane 0, col 3 (x = 460..540) và một cây giả ngay trên ô nước
+            TerrainQuery waterTerrain = (lane, x) -> (x >= 460.0 && x < 540.0) ? TileType.WATER : TileType.GRASS;
+            drowningZombie.setTerrainQuery(waterTerrain);
+            drowningZombie.setX(480.0);
+
+            DummyPlant plantOnWater = new DummyPlant(480.0, 100.0, 100);
+            // Gắn target sống, nhưng kiểm tra nước phải chạy TRƯỚC va chạm cây
+            drowningZombie.setCurrentTarget(plantOnWater);
+            drowningZombie.update(0.1);
+
+            assertInstanceOf(DrowningState.class, drowningZombie.getCurrentState());
+            assertEquals("DROWNING", drowningZombie.getCurrentState().getStateName());
+            double xDuringDrown = drowningZombie.getX();
+
+            // Trong DrowningState, zombie đứng yên ngang và sau 1.0s chuyển sang DeadState + phát sự kiện DROWNED
+            drowningZombie.update(1.0);
+            assertEquals(xDuringDrown, drowningZombie.getX(), 0.001);
+            assertTrue(drowningZombie.isDrowned());
+            assertInstanceOf(DeadState.class, drowningZombie.getCurrentState());
+            assertNotNull(drownedEvent.get());
+            assertEquals(ZombieDeathEvent.DeathCause.DROWNED, drownedEvent.get().getCause());
+            assertEquals(drowningZombie, drownedEvent.get().getZombie());
+
+            // Kiểm tra zombie biết bơi đi vào ô nước -> chuyển sang SwimmingState
+            swimmingZombie.setTerrainQuery(waterTerrain);
+            swimmingZombie.setX(480.0);
+            swimmingZombie.update(0.1);
+            assertInstanceOf(SwimmingState.class, swimmingZombie.getCurrentState());
+        } finally {
+            CombatEventBus.getInstance().unsubscribe(ZombieDeathEvent.class, listener);
+        }
+    }
+
+    @Test
+    @DisplayName("Kịch bản 10: EatingState ăn tầng TOP trước tầng BASE (LilyPad) và quay về SwimmingState khi ở trên nước")
+    void testScenario10_TwoLayerCellEatingOrderAndReturnToSwimming() {
+        WaterZombie wz = new WaterZombie(480.0, 100.0, 0, board);
+        board.setTile(0, 3, new WaterTile(0, 3, 460.0, 100.0, 80.0, 100.0));
+        wz.changeState(new SwimmingState());
+
+        DummyPlant topPlant = new DummyPlant(480.0, 100.0, 25);  // Peashooter (TOP)
+        DummyPlant basePlant = new DummyPlant(480.0, 100.0, 25); // LilyPad (BASE)
+
+        LayeredTarget cell = new LayeredTarget() {
+            @Override
+            public Entity getTopPlant() {
+                return topPlant;
+            }
+
+            @Override
+            public Entity getBasePlant() {
+                return basePlant;
+            }
+        };
+
+        wz.onCollideWithCell(cell, false);
+        assertInstanceOf(EatingState.class, wz.getCurrentState());
+        assertSame(topPlant, wz.getCurrentTarget());
+
+        // Cắn lần 1 (1.0s): ăn hết tầng TOP, tầng BASE vẫn nguyên vẹn và trở thành mục tiêu mới
+        wz.update(1.0);
+        assertFalse(topPlant.isAlive());
+        assertTrue(basePlant.isAlive());
+        assertEquals(25, basePlant.getHp());
+        assertSame(basePlant, wz.getCurrentTarget());
+        assertInstanceOf(EatingState.class, wz.getCurrentState());
+
+        // Cắn lần 2 (1.0s): ăn hết tầng BASE -> ô trống -> kiểm tra lại địa hình là WATER -> quay về SwimmingState
+        wz.update(1.0);
+        assertFalse(basePlant.isAlive());
+        assertNull(wz.getCurrentTarget());
+        assertInstanceOf(SwimmingState.class, wz.getCurrentState());
+    }
+
+    @Test
+    @DisplayName("Kịch bản 11: EscalatingRandomSpawnPolicy tính đúng interval(n), tuân thủ ân hạn, FlagZombie đầu turn và trần maxActiveZombies")
+    void testScenario11_EscalatingRandomSpawnPolicyWithFixedSeed() {
+        SpawnSpec customSpec = new SpawnSpec(
+                5.0,   // gracePeriod
+                4.0,   // T0
+                1.0,   // T_min
+                0.5,   // decay
+                3,     // maxActiveZombies
+                3,     // zombiesPerTurn
+                Arrays.asList("NORMAL", "CONEHEAD")
+        );
+
+        EscalatingRandomSpawnPolicy policy = new EscalatingRandomSpawnPolicy(customSpec, 2, new Random(12345L));
+        WaveManager manager = new WaveManager(board, policy, new Random(12345L));
+
+        // Kiểm tra công thức interval(n) = Math.max(T_min, T0 * Math.pow(decay, n))
+        assertEquals(4.0, policy.computeInterval(0), 0.001);
+        assertEquals(2.0, policy.computeInterval(1), 0.001);
+        assertEquals(1.0, policy.computeInterval(2), 0.001);
+        assertEquals(1.0, policy.computeInterval(5), 0.001); // clamped by T_min
+
+        // Trong thời gian ân hạn (< 5.0s): chưa spawn zombie nào
+        manager.update(4.5);
+        assertEquals(0, manager.getActiveZombies().size());
+        assertFalse(manager.isAllWavesCleared());
+
+        // Vừa hết thời gian ân hạn (tổng 5.0s): zombie đầu tiên của turn 0 là FlagZombie
+        manager.update(0.5);
+        assertEquals(1, manager.getActiveZombies().size());
+        assertInstanceOf(FlagZombie.class, manager.getActiveZombies().get(0));
+        assertTrue(manager.isHugeWaveApproaching());
+
+        // Sau interval(0) = 4.0s: spawn zombie thứ 2
+        manager.update(4.0);
+        assertEquals(2, manager.getActiveZombies().size());
+
+        // Sau interval(1) = 2.0s: spawn zombie thứ 3 (đạt trần maxActiveZombies = 3, kết thúc turn 0)
+        manager.update(2.0);
+        assertEquals(3, manager.getActiveZombies().size());
+        assertEquals(1, manager.getCurrentWaveIndex());
+
+        // Sau interval(2) = 1.0s: đã chạm trần maxActiveZombies = 3 nên KHÔNG spawn thêm
+        manager.update(1.0);
+        assertEquals(3, manager.getActiveZombies().size());
+
+        // Giết 1 zombie và cho qua DeadState (1.0s) để dọn khỏi sân -> còn 2 zombie
+        manager.getActiveZombies().get(0).takeDamage(1000);
+        manager.update(1.1);
+        assertEquals(2, manager.getActiveZombies().size());
+
+        // Frame tiếp theo khi slot đã trống (< 3): FlagZombie của turn 1 lập tức spawn
+        manager.update(0.1);
+        assertEquals(3, manager.getActiveZombies().size());
+        assertInstanceOf(FlagZombie.class, manager.getActiveZombies().get(2));
+
+        // Kiểm tra chế độ vô hạn (maxTurns == null) không bao giờ báo isAllWavesCleared()
+        EscalatingRandomSpawnPolicy endlessPolicy = new EscalatingRandomSpawnPolicy(customSpec, null, new Random(99L));
+        assertFalse(endlessPolicy.isAllWavesCleared(List.of()));
     }
 }

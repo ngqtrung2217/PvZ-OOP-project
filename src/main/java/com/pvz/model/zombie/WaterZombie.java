@@ -23,6 +23,7 @@ public class WaterZombie extends Zombie {
         super(x, y, WIDTH, HEIGHT, MAX_HP, LAND_SPEED, ATTACK_DAMAGE);
         this.swimSpeed = DEFAULT_SWIM_SPEED;
         this.waterZombie = true;
+        this.canSwim = true;
         this.renderColor = Color.web("#2E5E4E");
     }
 
@@ -30,11 +31,17 @@ public class WaterZombie extends Zombie {
         super(x, y, WIDTH, HEIGHT, MAX_HP, LAND_SPEED, ATTACK_DAMAGE, lane, board);
         this.swimSpeed = DEFAULT_SWIM_SPEED;
         this.waterZombie = true;
+        this.canSwim = true;
         this.renderColor = Color.web("#2E5E4E");
         // If spawned directly into a water tile, enter SwimmingState immediately
         if (isOnWater()) {
             changeState(new SwimmingState());
         }
+    }
+
+    @Override
+    public boolean canSwim() {
+        return true;
     }
 
     @Override
