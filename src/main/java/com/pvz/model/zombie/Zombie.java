@@ -30,6 +30,8 @@ public abstract class Zombie extends Entity {
     protected double swimSpeed;
     protected boolean hasVaulted = false;
     protected boolean waterZombie = false;
+    protected double slowMultiplier = 1.0;
+    protected double slowTimer = 0.0;
 
     public Zombie(double x, double y, double width, double height, int maxHp,
                   double speed, int attackDamage, int lane, GameBoard board) {
@@ -97,9 +99,60 @@ public abstract class Zombie extends Entity {
 
     @Override
     public void update(double deltaTime) {
-        if (currentState != null) {
-            currentState.update(this, deltaTime);
+        double effectiveDelta = deltaTime;
+        if (slowTimer > 0.0 && deltaTime > 0.0) {
+            if (deltaTime <= slowTimer) {
+                effectiveDelta = deltaTime * slowMultiplier;
+                slowTimer -= deltaTime;
+            } else {
+                effectiveDelta = slowTimer * slowMultiplier + (deltaTime - slowTimer);
+                slowTimer = 0.0;
+                slowMultiplier = 1.0;
+            }
+            if (slowTimer <= 0.0) {
+                slowTimer = 0.0;
+                slowMultiplier = 1.0;
+            }
         }
+        if (currentState != null) {
+            currentState.update(this, effectiveDelta);
+        }
+    }
+
+    /**
+     * Applies a temporary slow effect (e.g. from SnowPeaProjectile) to this zombie.
+     *
+     * @param multiplier Speed multiplier in (0.0, 1.0], e.g. 0.5 for 50% slow.
+     * @param duration   Duration of the slow effect in seconds.
+     */
+    public void applySlow(double multiplier, double duration) {
+        if (duration <= 0.0 || Double.isNaN(multiplier) || Double.isNaN(duration)) {
+            return;
+        }
+        double clampedMultiplier = Math.max(0.1, Math.min(1.0, multiplier));
+        if (slowTimer <= 0.0) {
+            this.slowMultiplier = clampedMultiplier;
+        } else {
+            this.slowMultiplier = Math.min(this.slowMultiplier, clampedMultiplier);
+        }
+        this.slowTimer = Math.max(this.slowTimer, duration);
+    }
+
+    public boolean isSlowed() {
+        return slowTimer > 0.0 && slowMultiplier < 1.0;
+    }
+
+    public double getSlowMultiplier() {
+        return isSlowed() ? slowMultiplier : 1.0;
+    }
+
+    public double getSlowTimer() {
+        return slowTimer;
+    }
+
+    public void clearSlow() {
+        this.slowTimer = 0.0;
+        this.slowMultiplier = 1.0;
     }
 
     @Override
