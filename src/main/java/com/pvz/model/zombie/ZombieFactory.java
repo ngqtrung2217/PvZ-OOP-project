@@ -161,6 +161,7 @@ public final class ZombieFactory {
         }
         zombie.setBoard(board);
         zombie.setLane(lane);
+        zombie.setType(normalizedType);
 
         return zombie;
     }

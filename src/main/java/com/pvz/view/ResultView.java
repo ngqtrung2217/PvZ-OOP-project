@@ -14,8 +14,7 @@ import javafx.scene.text.TextAlignment;
  * Draws the end-of-game screen for a {@link RunResult}: outcome, map and stats.
  * The victory and game-over states own the input; this class only paints.
  * <p>
- * TODO(Quang): add score, "Kỷ lục mới! Hạng n" and the top 10 once RunStats and
- * RecordRepository exist.
+ * TODO(Quang): add "Kỷ lục mới! Hạng n" and the top 10 once RecordRepository exists.
  */
 public final class ResultView {
     private static final Color WIN_BACKGROUND = Color.web("#064E3B");
@@ -47,18 +46,24 @@ public final class ResultView {
         double panelX = (width - panelWidth) / 2.0;
         double panelY = height / 3.0 + 80;
         gc.setFill(Color.rgb(255, 255, 255, 0.08));
-        gc.fillRoundRect(panelX, panelY, panelWidth, 100, 14, 14);
+        gc.fillRoundRect(panelX, panelY, panelWidth, 170, 14, 14);
 
-        gc.setFont(Font.font("Arial", FontWeight.NORMAL, 20));
+        gc.setFont(Font.font("Arial", FontWeight.BOLD, 30));
+        gc.setFill(Color.web("#FDE68A"));
+        gc.fillText("Điểm: " + result.score(), width / 2.0, panelY + 44);
+
+        gc.setFont(Font.font("Arial", FontWeight.NORMAL, 19));
         gc.setFill(Color.web("#E2E8F0"));
         gc.fillText("Thời gian sinh tồn: " + PlayingState.formatTime(result.survivalSeconds()),
-                width / 2.0, panelY + 40);
-        gc.fillText(progressLine(result), width / 2.0, panelY + 72);
+                width / 2.0, panelY + 80);
+        gc.fillText(progressLine(result), width / 2.0, panelY + 108);
+        gc.fillText(killLine(result), width / 2.0, panelY + 136);
+        gc.fillText("Xe cắt cỏ còn lại: " + result.mowersLeft(), width / 2.0, panelY + 160);
 
         if (result.practice()) {
             gc.setFont(Font.font("Arial", FontWeight.BOLD, 18));
             gc.setFill(Color.web("#FBBF24"));
-            gc.fillText("Chơi thử – không lưu kỷ lục", width / 2.0, panelY + 140);
+            gc.fillText("Chơi thử – không lưu kỷ lục", width / 2.0, panelY + 200);
         }
 
         gc.setFont(Font.font("Arial", FontWeight.NORMAL, 18));
@@ -68,6 +73,12 @@ public final class ResultView {
             gc.fillText(hint, width / 2.0, hintY);
             hintY += 30;
         }
+    }
+
+    /** "Zombie hạ gục: 12" plus drownings when there were any. */
+    static String killLine(RunResult result) {
+        String line = "Zombie hạ gục: " + result.kills();
+        return result.drowned() > 0 ? line + " · chết đuối: " + result.drowned() : line;
     }
 
     /** "Wave đã vượt qua: 3/5" for campaign; turn progress is not tracked yet for custom. */

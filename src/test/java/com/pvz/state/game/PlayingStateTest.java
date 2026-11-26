@@ -62,10 +62,17 @@ class PlayingStateTest {
         }
     }
 
+    private static WaveConfig twoZombies(int lane, double firstDelay, double secondDelay) {
+        return new WaveConfig(List.of(new SpawnConfig("NORMAL", lane, firstDelay),
+                new SpawnConfig("NORMAL", lane, secondDelay)), false);
+    }
+
     @Test
-    @DisplayName("A zombie that reaches the house ends the game as lost")
+    @DisplayName("The lawn mower stops the first zombie; the next one in that lane loses")
     void testZombieReachingHouseLoses() {
-        manager.startNewGame(campaignOf(oneZombie(2, 0.0)));
+        // The first zombie reaches the mower after about 42 s and the mower sweeps the
+        // whole lane, so the second must arrive after the mower has gone
+        manager.startNewGame(campaignOf(twoZombies(2, 0.0, 50.0)));
         PlayingState playing = (PlayingState) manager.getCurrentState();
 
         runUntilLeaves(playing);
@@ -76,6 +83,39 @@ class PlayingStateTest {
         assertSame(playing.getMap(), result.map());
         assertEquals(0, result.wavesCleared());
         assertTrue(result.survivalSeconds() > 30, "Crossing the lawn takes tens of seconds");
+        assertEquals(1, result.kills(), "The mower's kill is counted");
+        assertEquals(4, result.mowersLeft());
+        // 10 points for the mowed Normal + 1 per second, ×3 for 50 sun (capped at ×2)
+        int expected = (int) Math.round((10 + Math.floor(result.survivalSeconds())) * 2.0);
+        assertEquals(expected, result.score());
+    }
+
+    @Test
+    @DisplayName("A lone zombie is mowed down, so the level is won with one mower used")
+    void testMowerSavesTheLane() {
+        manager.startNewGame(campaignOf(oneZombie(3, 0.0)));
+        PlayingState playing = (PlayingState) manager.getCurrentState();
+
+        runUntilLeaves(playing);
+
+        VictoryState victory = assertInstanceOf(VictoryState.class, manager.getCurrentState());
+        assertEquals(1, victory.getResult().kills());
+        assertEquals(4, victory.getResult().mowersLeft());
+        assertTrue(playing.getMowers().get(3).isUsed() || playing.getMowers().get(3).isActive());
+    }
+
+    @Test
+    @DisplayName("Kills are not counted after the game has ended")
+    void testTrackerStopsAfterFinish() {
+        manager.startNewGame(campaignOf(oneZombie(3, 0.0)));
+        PlayingState playing = (PlayingState) manager.getCurrentState();
+        runUntilLeaves(playing);
+        int kills = playing.getStats().getKillCount();
+
+        com.pvz.system.event.CombatEventBus.getInstance().publish(
+                new com.pvz.system.event.ZombieDeathEvent(null));
+
+        assertEquals(kills, playing.getStats().getKillCount());
     }
 
     @Test
