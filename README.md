@@ -1,4 +1,4 @@
-# Plants vs. Zombies - Map Builder (OOP Project)
+# Plants vs. Zombies - Map Builder & Survival (OOP Project)
 
 Đồ án môn Lập trình Hướng đối tượng.
 
@@ -6,38 +6,151 @@
 - **Ngôn ngữ:** Java (JDK 17+)
 - **Đồ họa & Âm thanh:** JavaFX (Controls, Canvas, Media)
 - **Quản lý build:** Maven
-- **Xử lý JSON (Map Builder):** Google Gson
+- **Xử lý JSON (Map, Spec, Kỷ lục):** Google Gson
 - **Kiểm thử:** JUnit 5
 
 ## 2. Giới thiệu
-Game mô phỏng Plants vs. Zombies với 2 chế độ:
-- **Play Mode:** Phòng thủ cơ bản bằng cách trồng cây chống zombie theo hàng.
-- **Map Builder Mode:** Cho phép tự tạo bản đồ (chọn tile cỏ, nước, đá), đặt cây sẵn, chỉnh lượng Sun và cấu hình wave zombie, sau đó lưu ra file JSON để chơi.
+Game mô phỏng Plants vs. Zombies với 2 chế độ chơi. **Không có cây trồng sẵn ở bất kỳ chế độ nào**: mọi trận đều bắt đầu với bàn cờ trống.
 
-## 3. Áp dụng OOP & Design Patterns
-- **Đóng gói / Kế thừa / Đa hình / Trừu tượng:** Cây phả hệ `GameObject` -> `Entity` -> `Plant` / `Zombie` / `Projectile`.
-- **Builder Pattern:** `MapBuilder` dựng cấu hình map từng bước từ dữ liệu hoặc editor.
-- **Factory Pattern:** `PlantFactory`, `ZombieFactory` tạo đối tượng theo ID.
-- **State Pattern:** Quản lý trạng thái zombie (`Walk`, `Eat`, `Dead`) và trạng thái game (`Menu`, `Playing`, `GameOver`).
-- **Observer Pattern:** Bắn sự kiện va chạm, chết, nhặt Sun (`CombatEventBus`).
+- **Campaign Mode:** Các màn có sẵn (Ban ngày, Bể bơi), wave zombie theo kịch bản cố định trong file JSON. Thắng khi vượt qua wave cuối.
+- **Custom Mode (Sinh tồn):** Người chơi dùng **Map Editor** để:
+  - Vẽ địa hình lưới 5x9 bằng cách click hoặc kéo: **Cỏ**, **Nước**, **Hố**.
+  - Chọn **Sun khởi đầu**.
+  - Chọn **các loại cây** được xuất hiện trong thanh chọn cây.
+  - Chọn **số turn zombie**, hoặc tick **Vô hạn**.
+  - Đặt tên, lưu map, mở lại map đã lưu, hoặc **Chơi thử** ngay.
+
+  Zombie xuất hiện ngẫu nhiên và dồn dập dần theo thời gian. Mỗi trận được **tính điểm** và lưu **kỷ lục** theo từng bố cục map.
+
+## 3. Luật chơi chế độ Custom
+
+### 3.1 Địa hình
+| Ô | Trồng cây | Zombie |
+|---|---|---|
+| **Cỏ** | Mọi cây, trừ LilyPad | Đi bình thường |
+| **Nước** | Ô trống chỉ trồng được **LilyPad**; có LilyPad rồi thì trồng thêm 1 cây lên trên | Biết bơi thì bơi qua, không biết bơi thì **chết đuối** |
+| **Hố** | Không trồng được gì | Đi qua bình thường |
+
+### 3.2 Xuất hiện zombie (Spawn)
+- Spawn **chạy theo thời gian**, không chờ zombie turn trước chết hết.
+- Đầu trận có **thời gian ân hạn** (`gracePeriod`) không ra zombie, để người chơi kịp trồng cây đầu tiên.
+- Mỗi **turn** kéo dài `turnDuration` giây. Trong turn thứ `n`, cứ mỗi `interval(n)` giây ra 1 zombie ở **hàng ngẫu nhiên**:
+
+  ```
+  interval(n) = max(T_min, T0 · decay^n)        // 0 < decay < 1
+  ```
+
+- **Loại zombie** được chọn ngẫu nhiên theo bảng trọng số thay đổi theo turn: turn sớm chủ yếu Normal, turn muộn có thêm Buckethead.
+- Mỗi đầu turn có 1 **FlagZombie** dẫn đầu và hiện banner "Turn n".
+- Có **trần số zombie cùng lúc** (`maxAliveZombies`) để giữ FPS ổn định.
+- Toàn bộ tham số spawn nằm trong `resources/data/spawn_spec.json` và dùng chung cho mọi map. File map **không** chứa tham số spawn.
+
+### 3.3 Bơi và chết đuối
+- Mỗi **loại** zombie có một tỉ lệ chết đuối riêng (`drownChance`) trong `zombies_spec.json`. Người chơi không nhìn thấy tỉ lệ này và tự khám phá qua quá trình chơi.
+- **Lúc spawn**, mỗi con tung xúc xắc một lần: `canSwim = random.nextDouble() >= drownChance`.
+- `WaterZombie` (đi phao) có `drownChance = 0`, tức là luôn bơi được.
+- Khi mép trước hitbox của zombie đi vào ô Nước:
+  - `canSwim = true` → chuyển sang `SwimmingState`. Rời nước sang ô cỏ thì quay về `WalkingState`.
+  - `canSwim = false` → chuyển sang `DrowningState` (animation chìm) rồi `DeadState`.
+- **Thứ tự kiểm tra:** kiểm tra chết đuối **trước**, va chạm cây **sau**. Vì vậy zombie không biết bơi không bao giờ ăn được cây trên mặt nước.
+- `PoleVaultingZombie` nhảy qua cây rồi đáp xuống ô nước thì kiểm tra chết đuối **tại chỗ đáp**.
+
+### 3.4 LilyPad và zombie biết bơi
+- Mỗi ô (`Cell`) giữ 2 tầng cây: `basePlant` (LilyPad) và `topPlant` (cây trồng trên LilyPad).
+- Zombie đang bơi tới ô có LilyPad sẽ **ăn `topPlant` trước, sau đó ăn LilyPad**. Ăn xong LilyPad thì ô trở lại thành nước trống.
+- Ăn xong, `EatingState` hỏi `TerrainQuery` để quay về **đúng** state: ô nước thì về `SwimmingState`, ô cỏ thì về `WalkingState`.
+
+### 3.5 Tương tác khác
+- **Xe cắt cỏ** chạy hết hàng bất kể địa hình, diệt cả zombie đang bơi.
+- **CherryBomb** nổ trúng mọi zombie trong vùng 3x3, kể cả zombie đang bơi.
+- **Mặt trời** rơi xuống ô nước vẫn nhặt được bình thường.
+
+### 3.6 Kết thúc trận
+| Cấu hình | Thắng | Thua |
+|---|---|---|
+| Có số turn `N` | Vượt qua hết turn N **và** dọn sạch sân | Zombie vào nhà |
+| **Vô hạn** (`maxTurns = null`) | Không có thắng, trận chỉ kết thúc khi thua | Zombie vào nhà |
+
+### 3.7 Tính điểm
+```
+Điểm = (Điểm giết + Điểm thời gian + Thưởng turn + Thưởng thắng) × Hệ số Sun
+```
+| Thành phần | Cách tính |
+|---|---|
+| Điểm giết | Normal 10 · Water 15 · Cone 20 · Pole 25 · Bucket 40. **Zombie chết đuối chỉ tính 50%** |
+| Điểm thời gian | 1 điểm mỗi giây sinh tồn, cộng dồn `deltaTime` và **không tính thời gian Pause** |
+| Thưởng turn | 100 × số turn đã vượt qua |
+| Thưởng thắng | Chỉ áp dụng khi có giới hạn turn: 500 + 100 × số xe cắt cỏ còn lại |
+| Hệ số Sun | `clamp(150 / sunKhởiĐầu, 0.5, 2.0)`: 50 Sun được ×2.0, 150 Sun được ×1.0, 300 Sun trở lên được ×0.5 |
+
+Mọi hệ số nằm trong `resources/data/score_spec.json` để nhóm cân bằng mà không phải sửa code.
+
+### 3.8 Kỷ lục
+- Kỷ lục gắn với **bố cục map**: mã băm SHA-256 của `tiles + allowedPlants`, **không tính** Sun và số turn. Cùng một địa hình chơi với Sun hoặc số turn khác nhau thì vẫn chung một bảng kỷ lục.
+- Mỗi kỷ lục lưu: **Sun khởi đầu, số turn (hoặc ∞), số turn đạt được, thời gian sinh tồn**, kết quả, số zombie bị giết, số zombie chết đuối, điểm, thời điểm chơi.
+- Giữ **top 10 mỗi bố cục**. Sắp xếp theo điểm giảm dần; bằng điểm thì thời gian dài hơn đứng trên; vẫn bằng thì trận chơi trước đứng trên.
+- Nút **Chơi thử** trong editor **không lưu kỷ lục**, chỉ hiển thị điểm kèm nhãn "Chơi thử – không lưu kỷ lục".
+
+### 3.9 Kiểm tra cấu hình trong Map Editor
+| Cấu hình | Xử lý |
+|---|---|
+| Không chọn cây nào | **Chặn lưu** |
+| Có ô nước nhưng không chọn LilyPad | Cảnh báo |
+| Không chọn Sunflower | Cảnh báo (Sun chỉ đến từ trời) |
+| Không chọn cây tấn công nào | Cảnh báo |
+| Có hàng toàn ô Hố | Cảnh báo (hàng đó không thể phòng thủ) |
+| Chưa đặt tên map | Chặn lưu |
+
+### 3.10 Ví dụ file map Custom
+```json
+{
+  "name": "Ao giữa sân",
+  "mode": "CUSTOM",
+  "tiles": [
+    ["GRASS","GRASS","WATER","GRASS","GRASS","GRASS","GRASS","GRASS","GRASS"],
+    ["GRASS","WATER","WATER","GRASS","WATER","GRASS","GRASS","GRASS","GRASS"],
+    ["GRASS","GRASS","GRASS","GRASS","CRATER","WATER","GRASS","GRASS","GRASS"],
+    ["GRASS","GRASS","GRASS","GRASS","CRATER","GRASS","GRASS","GRASS","GRASS"],
+    ["GRASS","GRASS","GRASS","GRASS","GRASS","GRASS","GRASS","GRASS","GRASS"]
+  ],
+  "startingSun": 150,
+  "allowedPlants": ["PEASHOOTER", "SUNFLOWER", "WALL_NUT", "LILY_PAD"],
+  "maxTurns": 5
+}
+```
+`"maxTurns": null` nghĩa là Vô hạn.
+
+## 4. Áp dụng OOP & Design Patterns
+- **Đóng gói / Kế thừa / Đa hình / Trừu tượng:** Cây phả hệ `GameObject` -> `Entity` -> `Plant` / `Zombie`, và `GameObject` -> `Tile` / `Projectile`.
+- **Builder Pattern:** `MapBuilder` dựng `GameMap` từng bước, dùng cho cả màn mẫu (`LevelDirector`) và Map Editor.
+- **Factory Method Pattern:** `PlantFactory`, `ZombieFactory` tạo đối tượng theo loại, nạp chỉ số từ file spec.
+- **State Pattern:**
+  - Trạng thái game: `Menu`, `Playing`, `Pause`, `Victory`, `GameOver`.
+  - Trạng thái zombie: `Walking`, `Eating`, `Vaulting`, `Swimming`, `Drowning`, `Dead`.
+- **Strategy Pattern:** `SpawnPolicy` tách cách ra zombie: `ScriptedSpawnPolicy` (Campaign) và `EscalatingRandomSpawnPolicy` (Custom). `WaveManager` chỉ giữ một `SpawnPolicy`, không cần `if (mode == CUSTOM)`.
+- **Observer Pattern:** `CombatEventBus` phát sự kiện va chạm, zombie chết, cây bị ăn, nhặt Sun. Âm thanh, hiệu ứng và **hệ thống điểm** (`ScoreTracker`) đều lắng nghe qua bus này.
 - **Singleton Pattern:** `ResourceManager` (load sprite/âm thanh), `GameManager`.
 
-## 4. Phân chia công việc & Kiến thức chi tiết (5 thành viên)
+## 5. Phân chia công việc & Kiến thức chi tiết (5 thành viên)
 
 ### Thành viên 1: Core Engine, Grid & Trạng thái Game (Trung)
 - **Nhiệm vụ & Thiết kế Class:**
-  - `GameObject` (abstract): Tọa độ `x`, `y`, kích thước `width`, `height`. Phương thức trừu tượng `update(double deltaTime)`, `render(GraphicsContext gc)`, `getHitbox()`.
-  - `Entity` (abstract kế thừa `GameObject`): Thuộc tính `hp`, `maxHp`. Phương thức `takeDamage(int dmg)`, `isAlive()`.
-  - `Tile` (abstract kế thừa `GameObject`): Tọa độ hàng `row`, cột `col`, loại `TileType`, cờ `canPlant` (mỗi phân lớp quy định sẵn, không đổi sau khi tạo). Các phân lớp: `GrassTile`, `WaterTile`, `CraterTile`.
-  - `GameManager` (Singleton): quản lý state hiện tại và số Sun của phiên chơi. `startNewGame(...)` mở phiên mới (nạp lại Sun), `changeState(...)` chỉ chuyển state nên Pause/Resume giữ nguyên tiến độ.
-  - `GameBoard`: Ma trận 2D `Tile[5][9]`, quản lý danh sách thực thể và ánh xạ pixel sang ô cờ.
-  - `GameState`: Interface quản lý vòng đời game theo **State Pattern** (`MenuState`, `PlayingState`, `PauseState`, `GameOverState`).
-  - `GameLoop`: Kế thừa `AnimationTimer` của JavaFX, điều phối vòng lặp game tách biệt giữa logic (`update`) và vẽ đồ họa (`render`).
+  - `GameObject` (abstract): tọa độ `x`, `y`, kích thước `width`, `height`. Phương thức trừu tượng `update(double deltaTime)`, `render(GraphicsContext gc)`, `getHitbox()`.
+  - `Entity` (abstract, kế thừa `GameObject`): thuộc tính `hp`, `maxHp`. Phương thức `takeDamage(int dmg)`, `isAlive()`.
+  - `Tile` (abstract, kế thừa `GameObject`): `row`, `col`, `TileType`. Phương thức `canPlace(PlantType type, Cell cell)` do từng phân lớp quy định: `GrassTile`, `WaterTile`, `CraterTile`.
+  - `Cell`: một ô của bàn cờ, giữ `Tile`, `basePlant` (LilyPad) và `topPlant`.
+  - `TerrainQuery` (interface): `getTileType(int lane, double x)`. Cho zombie hỏi địa hình mà không phụ thuộc trực tiếp vào `GameBoard`.
+  - `GameBoard`: ma trận `Cell[5][9]`, quản lý danh sách thực thể, ánh xạ pixel sang ô cờ, hiện thực `TerrainQuery`.
+  - `GameManager` (Singleton): quản lý state hiện tại và số Sun của phiên chơi. `startNewGame(GameMap)` mở phiên mới, nạp Sun khởi đầu; `changeState(...)` chỉ chuyển state nên Pause/Resume giữ nguyên tiến độ.
+  - `GameState`: interface theo **State Pattern** (`MenuState`, `PlayingState`, `PauseState`, `VictoryState`, `GameOverState`).
+    - `PlayingState` cộng dồn thời gian sinh tồn (chỉ khi đang chơi), gọi `WaveManager`, kiểm tra 2 điều kiện kết thúc (có hoặc không có `maxTurns`).
+    - `VictoryState` / `GameOverState` hiển thị chỉ số trận và gửi kỷ lục.
+  - `GameLoop`: kế thừa `AnimationTimer` của JavaFX, tách biệt logic (`update`) và vẽ (`render`).
 - **Kiến thức kỹ thuật chi tiết cần học:**
-  1. **Game Loop 60 FPS & Delta Time:** Tính toán khoảng thời gian giữa 2 khung hình (`deltaTime`) để đồng bộ tốc độ di chuyển không phụ thuộc phần cứng máy.
-  2. **Toán chuyển đổi tọa độ Pixel - Grid:** Công thức ánh xạ click chuột sang ô cờ: `col = (int) ((mouseX - START_X) / CELL_WIDTH)`, `row = (int) ((mouseY - START_Y) / CELL_HEIGHT)`.
-  3. **Mẫu thiết kế State & Singleton:** Xây dựng máy trạng thái game và triển khai Singleton cho `GameManager`.
-  4. **JavaFX Canvas Rendering:** Quản lý `GraphicsContext`, kỹ thuật xóa khung hình `gc.clearRect()` và vẽ theo lớp (Layer rendering).
+  1. **Game Loop 60 FPS & Delta Time:** tính khoảng thời gian giữa 2 khung hình để tốc độ không phụ thuộc phần cứng.
+  2. **Toán chuyển đổi tọa độ Pixel - Grid:** `col = (int) ((mouseX - START_X) / CELL_WIDTH)`, `row = (int) ((mouseY - START_Y) / CELL_HEIGHT)`.
+  3. **Mẫu thiết kế State & Singleton:** máy trạng thái game và Singleton cho `GameManager`.
+  4. **JavaFX Canvas Rendering:** `GraphicsContext`, `gc.clearRect()`, vẽ theo lớp (tile → cây nền → cây trên → zombie → đạn → hiệu ứng → HUD).
 - **Nguồn tài liệu chuyên sâu:**
   - [JavaFX AnimationTimer & Game Loop Guide](https://openjfx.io)
   - [Refactoring Guru: State Pattern in Java](https://refactoring.guru/design-patterns/state/java/example)
@@ -46,75 +159,99 @@ Game mô phỏng Plants vs. Zombies với 2 chế độ:
 
 ### Thành viên 2: Hệ sinh thái Cây trồng & Kinh tế Mặt trời (An Nguyên)
 - **Nhiệm vụ & Thiết kế Class:**
-  - `Plant` (abstract kế thừa `Entity`): Thuộc tính `cost`, `cooldown`, `attackSpeed`.
-  - Các phân lớp cụ thể: `Sunflower` (đếm thời gian sinh Sun), `Peashooter` (quét zombie trên hàng để bắn đậu), `SnowPea` (bắn đậu băng làm chậm), `WallNut` (máu cao chắn đường), `CherryBomb` (nổ diện rộng 3x3), `LilyPad` (bèo đệm trên nước).
-  - `PlantFactory`: Triển khai **Factory Method Pattern** để tạo cây theo tên/loại.
-  - `Sun`: Vật phẩm năng lượng, rơi ngẫu nhiên từ trời hoặc mọc từ Sunflower. Xử lý click chuột để nhặt và cộng dồn điểm.
-  - `CardSlot` & `DeckManager`: Thanh chọn cây, tính toán thời gian hồi chiêu (lớp phủ Cooldown Overlay), kiểm tra số dư Sun để cho phép trồng.
+  - `Plant` (abstract, kế thừa `Entity`): thuộc tính `cost`, `cooldown`, `attackSpeed`, `layer` (`BASE` cho LilyPad, `TOP` cho các cây khác).
+  - Các phân lớp: `Sunflower` (sinh Sun theo chu kỳ), `Peashooter` (bắn đậu khi có zombie trên hàng), `SnowPea` (đậu băng làm chậm), `WallNut` (máu cao chắn đường), `CherryBomb` (nổ 3x3, trúng cả zombie đang bơi), `LilyPad` (đệm trên ô nước, cho phép trồng 1 cây lên trên).
+  - `PlantFactory`: **Factory Method Pattern**, tạo cây theo `PlantType`, nạp chỉ số từ `plants_spec.json`.
+  - `Sun`: rơi ngẫu nhiên từ trời hoặc sinh từ Sunflower, click để nhặt (nhặt được cả trên ô nước).
+  - `CardSlot` & `DeckManager`: thanh chọn cây, **chỉ hiển thị các cây trong `allowedPlants` của map**, lớp phủ cooldown, kiểm tra số dư Sun.
 - **Kiến thức kỹ thuật chi tiết cần học:**
-  1. **Kế thừa đa cấp & Tính đa hình (Polymorphism):** Mở rộng thêm cây mới mà không sửa logic cũ (Open/Closed Principle).
-  2. **Quản lý Cooldown & Bộ đếm thời gian:** Xây dựng `CooldownTimer` dựa trên delta time, chuẩn hóa tỷ lệ hiển thị thanh hồi chiêu.
-  3. **Thuật toán Hit Test click chuột:** Nhận diện click trúng hạt mặt trời đang rơi bằng bounding box.
-  4. **Mẫu thiết kế Factory Method:** Tách rời logic tạo cây ra khỏi luồng điều khiển của bàn cờ.
+  1. **Kế thừa đa cấp & Đa hình:** thêm cây mới không sửa logic cũ (Open/Closed Principle).
+  2. **Quản lý Cooldown:** `CooldownTimer` dựa trên delta time, chuẩn hóa tỷ lệ hiển thị thanh hồi chiêu.
+  3. **Hit Test click chuột:** nhận diện click trúng mặt trời bằng bounding box.
+  4. **Mẫu thiết kế Factory Method:** tách logic tạo cây khỏi luồng điều khiển bàn cờ.
 - **Nguồn tài liệu chuyên sâu:**
   - [Refactoring Guru: Factory Method Pattern](https://refactoring.guru/design-patterns/factory-method/java/example)
   - [Game Programming Patterns: Game Loop & Delta Time](https://gameprogrammingpatterns.com/game-loop.html)
   - [Oracle Java: Abstract Methods and Classes](https://docs.oracle.com/javase/tutorial/java/IandI/abstract.html)
   - [Jenkov: JavaFX Mouse Event Handling](https://jenkov.com/tutorials/javafx/events.html)
 
-### Thành viên 3: Zombie AI, State Machine & Wave Spawner (Ngọc Minh)
+### Thành viên 3: Zombie AI, State Machine & Spawn (Ngọc Minh)
 - **Nhiệm vụ & Thiết kế Class:**
-  - `Zombie` (abstract kế thừa `Entity`): Thuộc tính `speed`, `attackDamage`, `currentLane`, `state`.
-  - Phân lớp Zombie: `NormalZombie` (cơ bản), `ConeheadZombie` / `BucketheadZombie` (quản lý giáp phụ Armor HP, đổi sprite khi vỡ giáp), `PoleVaultingZombie` (cầm sào nhảy vượt qua cây đầu tiên), `WaterZombie` (chuyển sang bơi khi gặp ô nước).
-  - **State Pattern cho Zombie:** Interface `ZombieState` (`WalkingState`, `EatingState`, `VaultingState`, `DeadState`).
-  - `Wave`: Chứa danh sách zombie, hàng xuất hiện (lane) và thời gian trễ.
-  - `WaveManager`: Điều phối nhịp độ đợt quái, phát tín hiệu cờ báo hiệu đợt quái lớn (Huge Wave).
+  - `Zombie` (abstract, kế thừa `Entity`): thuộc tính `speed`, `attackDamage`, `currentLane`, `state`, `canSwim` (gán một lần lúc spawn theo `drownChance`).
+  - Phân lớp: `NormalZombie`, `FlagZombie` (dẫn đầu mỗi turn), `ConeheadZombie` / `BucketheadZombie` (giáp phụ, đổi sprite khi vỡ giáp), `PoleVaultingZombie` (nhảy qua cây đầu tiên), `WaterZombie` (đi phao, luôn bơi được).
+  - `ZombieFactory`: tạo zombie theo `ZombieType`, nạp chỉ số và `drownChance` từ `zombies_spec.json`, nhận `Random` được tiêm vào để tung `canSwim`.
+  - **State Pattern cho Zombie:** interface `ZombieState` với `WalkingState`, `EatingState`, `VaultingState`, `SwimmingState`, `DrowningState`, `DeadState`.
+    - `EatingState` ăn `topPlant` trước `basePlant`; ăn xong hỏi `TerrainQuery` để về `SwimmingState` hoặc `WalkingState`.
+    - Kiểm tra chết đuối được ưu tiên trước kiểm tra va chạm cây.
+  - **Strategy Pattern cho Spawn:**
+    - `SpawnPolicy` (interface): `List<SpawnRequest> update(double dt)`, `boolean isFinished()`, `int currentTurn()`.
+    - `ScriptedSpawnPolicy`: đọc `Wave` / `WaveEntry` từ file màn Campaign.
+    - `EscalatingRandomSpawnPolicy`: thời gian ân hạn, `interval(n) = max(T_min, T0 · decay^n)`, hàng ngẫu nhiên, loại zombie theo trọng số từng turn, `maxTurns` có thể `null`, trần `maxAliveZombies`.
+  - `WaveManager`: giữ một `SpawnPolicy`, chuyển `SpawnRequest` thành zombie trên bàn cờ, phát banner "Turn n".
 - **Kiến thức kỹ thuật chi tiết cần học:**
-  1. **Máy trạng thái hữu hạn (Finite State Machine - FSM):** Tách biệt hành vi và chuyển giao trạng thái mượt mà của Zombie mà không dùng chuỗi `if-else` lồng nhau.
-  2. **Quản lý danh sách động & Safe Removal:** Sử dụng `Iterator<Zombie>` để loại bỏ an toàn các quái vật đã chết (`!zombie.isAlive()`), tránh ngoại lệ `ConcurrentModificationException`.
-  3. **Lập lịch xuất hiện sự kiện (Event Scheduling):** Dùng bộ đếm thời gian tích lũy để kích hoạt đợt quái đúng thời điểm kịch bản.
+  1. **Finite State Machine (FSM):** tách hành vi zombie, chuyển trạng thái không dùng `if-else` lồng nhau.
+  2. **Safe Removal:** dùng `Iterator<Zombie>` loại bỏ zombie đã chết, tránh `ConcurrentModificationException`.
+  3. **Lập lịch theo thời gian:** bộ đếm tích lũy, dùng `while` (không dùng `if`) để spawn bù khi frame bị giật; chỉ cộng dồn trong `PlayingState`.
+  4. **Ngẫu nhiên kiểm thử được:** tiêm `java.util.Random` qua constructor để test với seed cố định.
+  5. **Mẫu thiết kế Strategy:** hoán đổi cách spawn mà không sửa `WaveManager`.
 - **Nguồn tài liệu chuyên sâu:**
-  - [Game Programming Patterns: State Machine in Game](https://gameprogrammingpatterns.com/state.html)
-  - [Refactoring Guru: State Pattern Comprehensive Guide](https://refactoring.guru/design-patterns/state)
-  - [Baeldung: Correct Removal in Java Collections](https://www.baeldung.com/java-concurrentmodificationexception)
+  - [Game Programming Patterns: State](https://gameprogrammingpatterns.com/state.html)
+  - [Refactoring Guru: State Pattern](https://refactoring.guru/design-patterns/state)
+  - [Refactoring Guru: Strategy Pattern in Java](https://refactoring.guru/design-patterns/strategy/java/example)
+  - [Baeldung: ConcurrentModificationException](https://www.baeldung.com/java-concurrentmodificationexception)
 
-### Thành viên 4: Hệ thống Chiến đấu, Va chạm & Hiệu ứng Âm thanh (Tuấn Minh)
+### Thành viên 4: Chiến đấu, Va chạm, Âm thanh & Tính điểm (Tuấn Minh)
 - **Nhiệm vụ & Thiết kế Class:**
-  - `Projectile` (abstract kế thừa `GameObject`): Thuộc tính `speed`, `damage`, `lane`. Phân lớp: `PeaProjectile` (đạn thường), `SnowPeaProjectile` (đạn băng làm chậm 50%).
+  - `Projectile` (abstract, kế thừa `GameObject`): `speed`, `damage`, `lane`. Phân lớp: `PeaProjectile`, `SnowPeaProjectile` (làm chậm 50%).
   - `CollisionSystem`:
-    - Thuật toán kiểm tra va chạm Hitbox AABB giữa Đạn - Zombie trên cùng hàng.
-    - Kiểm tra khoảng cách Zombie - Cây để chuyển sang trạng thái ăn cây.
-    - Kiểm tra va chạm Xe cắt cỏ - Zombie.
-  - `LawnMower`: Xe cắt cỏ ở đầu mỗi hàng (`x = 0`), tự kích hoạt khi có zombie chạm vào, di chuyển nhanh dọn sạch hàng đó.
-  - `ShovelTool`: Công cụ xẻng nhổ cây, giải phóng ô đất.
-  - `CombatEventBus` (**Observer Pattern**): Phát và nhận các sự kiện: `BulletHitEvent`, `ZombieDeathEvent`, `BombExplosionEvent`.
-  - `SoundManager`: Nạp trước và phát các hiệu ứng âm thanh `.wav` (tiếng bắn, tiếng quái cắn, tiếng nổ) bằng `AudioClip` của JavaFX.
+    - Va chạm AABB giữa Đạn và Zombie trên cùng hàng.
+    - Khoảng cách Zombie và Cây để chuyển sang trạng thái ăn (chạy **sau** kiểm tra chết đuối).
+    - Va chạm Xe cắt cỏ và Zombie.
+  - `LawnMower`: xe cắt cỏ đầu mỗi hàng, tự kích hoạt khi có zombie chạm vào, chạy hết hàng bất kể địa hình.
+  - `ShovelTool`: xẻng nhổ cây. Ô nước nhổ `topPlant` trước, sau đó mới nhổ LilyPad.
+  - `CombatEventBus` (**Observer Pattern**) với các sự kiện:
+    - `BulletHitEvent`, `BombExplosionEvent`, `SunCollectedEvent`.
+    - `ZombieDeathEvent(zombieType, cause)`, trong đó `cause` là `KILLED` hoặc `DROWNED`.
+    - `PlantEatenEvent(plantType, layer)`, trong đó `layer` là `TOP` hoặc `BASE`.
+  - `SoundManager`: nạp trước và phát hiệu ứng `.wav` (bắn, cắn, nổ, tiếng "bõm" khi chết đuối) bằng `AudioClip`.
+  - **Hệ thống điểm:**
+    - `RunStats`: số zombie bị giết, số zombie chết đuối, thời gian sinh tồn, số turn đạt được, số xe cắt cỏ còn lại.
+    - `ScoreTracker` (hiện thực `CombatListener`): lắng nghe sự kiện và cập nhật `RunStats`.
+    - `ScoreCalculator`: tính điểm theo công thức mục 3.7, đọc hệ số từ `score_spec.json`.
 - **Kiến thức kỹ thuật chi tiết cần học:**
-  1. **Thuật toán va chạm 2D Axis-Aligned Bounding Box (AABB):** Kiểm tra giao thoa giữa 2 hình hộp chữ nhật theo trục tọa độ.
-  2. **Mẫu thiết kế Observer (Publish-Subscribe):** Tách rời hệ thống va chạm với hệ thống âm thanh và đồ họa.
-  3. **Âm thanh độ trễ thấp (Low-Latency Audio):** Dùng JavaFX `AudioClip` nạp sẵn âm thanh vào RAM để phát tức thời không bị giật lag.
+  1. **Va chạm 2D AABB:** kiểm tra giao nhau giữa 2 hình chữ nhật theo trục tọa độ.
+  2. **Observer (Publish-Subscribe):** tách hệ thống va chạm khỏi âm thanh, đồ họa và điểm.
+  3. **Âm thanh độ trễ thấp:** `AudioClip` nạp sẵn vào RAM.
 - **Nguồn tài liệu chuyên sâu:**
-  - [MDN: 2D Collision Detection Techniques (AABB)](https://developer.mozilla.org/en-US/docs/Games/Techniques/2D_collision_detection)
+  - [MDN: 2D Collision Detection (AABB)](https://developer.mozilla.org/en-US/docs/Games/Techniques/2D_collision_detection)
   - [Refactoring Guru: Observer Pattern in Java](https://refactoring.guru/design-patterns/observer/java/example)
   - [Oracle JavaFX AudioClip Class Reference](https://openjfx.io/javadoc/21/javafx.media/javafx/scene/media/AudioClip.html)
 
-### Thành viên 5: Map Builder Engine, Lưu/Đọc File & Trình soạn thảo GUI (Quang)
+### Thành viên 5: Map Builder, Lưu/Đọc File, Kỷ lục & Giao diện Editor (Quang)
 - **Nhiệm vụ & Thiết kế Class:**
-  - `MapBuilder` (interface định nghĩa các bước dựng map) & `CustomMapBuilder` (hiện thực chi tiết **Builder Pattern**).
-  - `LevelDirector`: Xây dựng sẵn các kịch bản màn chơi mẫu (Stage Ban ngày, Stage Bể bơi).
-  - `MapSerializer`: Đọc và ghi dữ liệu cấu hình bản đồ sang định dạng JSON sử dụng thư viện **Google Gson**.
-  - `MapEditorController` & `MapEditorView`: Giao diện thiết kế bản đồ (thanh Palette chọn loại đất, click đặt lên bàn cờ, nhập số Sun, lưu file).
-  - `LevelSelectView`: Màn hình chọn chơi màn mặc định hoặc nạp file bản đồ tự chế.
+  - `MapBuilder` (interface) & `CustomMapBuilder` (**Builder Pattern**, method chaining): `setName`, `setTile`, `setStartingSun`, `setAllowedPlants`, `setMaxTurns(Integer)`, `build()`.
+  - `GameMap`: đối tượng map hoàn chỉnh (lưới tile, Sun khởi đầu, danh sách cây, số turn hoặc wave kịch bản).
+  - `LevelDirector`: dựng sẵn các màn mẫu (Ban ngày, Bể bơi) và các mẫu nhanh trong editor (Sân cỏ, Bể bơi).
+  - `MapValidator`: trả về danh sách lỗi (chặn lưu) và cảnh báo theo bảng mục 3.9.
+  - `MapSerializer`: đọc/ghi map JSON bằng **Google Gson** qua DTO.
+  - `MapIdHasher`: tạo mã SHA-256 từ `tiles + allowedPlants` để định danh bố cục.
+  - `RecordRepository`: đọc/ghi kỷ lục, giữ top 10 mỗi bố cục, `submit(RunRecord)` trả về hạng hoặc `-1`.
+  - `UserDataPaths`: đường dẫn thư mục dữ liệu người dùng `~/.pvz/`.
+  - **Giao diện:**
+    - `MapEditorView` & `MapEditorController`: palette địa hình, vẽ bằng click hoặc kéo, mẫu nhanh, ô tên map, Sun khởi đầu, checkbox cây, số turn + "Vô hạn", nút **Mở**, **Lưu**, **Chơi thử**, thống kê (số ô nước, số ô hố, hệ số điểm), khung cảnh báo, khung **"Kỷ lục bố cục này"** (top 3).
+    - `LevelSelectView`: chọn màn Campaign hoặc map Custom đã lưu.
+    - `ResultView`: màn kết thúc hiển thị chỉ số, điểm, dòng "Kỷ lục mới! Hạng n" và bảng top 10.
 - **Kiến thức kỹ thuật chi tiết cần học:**
-  1. **Mẫu thiết kế Builder (GoF):** Tách rời quá trình khởi tạo cấu hình bản đồ phức tạp, áp dụng Method Chaining (`return this;`).
-  2. **Xử lý Serialization với Google Gson:** Kỹ thuật chuyển đổi cấu trúc đối tượng phức tạp (`GameMap`) thành file văn bản JSON và ngược lại.
-  3. **Xây dựng UI tương tác trong JavaFX:** Quản lý giao diện bằng các layout container (`BorderPane`, `VBox`), bắt sự kiện nút bấm (`setOnAction`) và click chuột trên Canvas.
+  1. **Builder (GoF):** tách quá trình dựng cấu hình map, method chaining (`return this;`).
+  2. **Serialization với Gson:** DTO, kiểu `Integer` có thể `null` cho Vô hạn, enum ↔ chuỗi.
+  3. **Lưu file ngoài jar:** `resources/` chỉ đọc được khi đóng gói, nên dữ liệu người dùng phải ghi vào `System.getProperty("user.home")`.
+  4. **UI tương tác JavaFX:** `BorderPane`, `VBox`, `GridPane`, `setOnAction`, sự kiện kéo chuột trên lưới.
 - **Nguồn tài liệu chuyên sâu:**
   - [Refactoring Guru: Builder Pattern in Java](https://refactoring.guru/design-patterns/builder/java/example)
-  - [Baeldung: Complete Guide to Google Gson Serialization](https://www.baeldung.com/gson-deserialization-guide)
+  - [Baeldung: Gson Deserialization Guide](https://www.baeldung.com/gson-deserialization-guide)
   - [Jenkov: JavaFX Layout Containers Tutorial](https://jenkov.com/tutorials/javafx/layout-containers.html)
 
-## 5. Sơ đồ lớp (Class Diagram)
+## 6. Sơ đồ lớp (Class Diagram)
 ```mermaid
 classDiagram
     class GameObject {
@@ -125,10 +262,12 @@ classDiagram
         #double height
         +update(double deltaTime)
         +render(GraphicsContext gc)
+        +getHitbox() Hitbox
     }
     class Entity {
         <<abstract>>
         #int hp
+        #int maxHp
         +takeDamage(int amount)
         +isAlive() bool
     }
@@ -136,30 +275,58 @@ classDiagram
         <<abstract>>
         #int cost
         #double cooldown
+        #PlantLayer layer
     }
     class Zombie {
         <<abstract>>
         #double speed
+        #int attackDamage
+        #boolean canSwim
         #ZombieState state
-        +attack(Plant target)
+        +changeState(ZombieState next)
     }
     class Tile {
         <<abstract>>
         #int row
         #int col
-        #boolean canPlant
+        +canPlace(PlantType type, Cell cell) bool
+    }
+    class Cell {
+        -Tile tile
+        -Plant basePlant
+        -Plant topPlant
     }
     class Projectile {
         <<abstract>>
         #double speed
         #int damage
     }
+    class ZombieState {
+        <<interface>>
+        +update(Zombie z, double dt)
+    }
+    class SpawnPolicy {
+        <<interface>>
+        +update(double dt) List
+        +isFinished() bool
+        +currentTurn() int
+    }
     class MapBuilder {
         <<interface>>
-        +setTile(int r, int c, Tile tile)
-        +addPrePlanted(int r, int c, Plant plant)
-        +addWave(Wave wave)
+        +setName(String name)
+        +setTile(int r, int c, TileType type)
+        +setStartingSun(int sun)
+        +setAllowedPlants(List types)
+        +setMaxTurns(Integer turns)
         +build() GameMap
+    }
+    class ScoreTracker {
+        -RunStats stats
+        +onEvent(GameEvent e)
+    }
+    class CombatListener {
+        <<interface>>
+        +onEvent(GameEvent e)
     }
 
     GameObject <|-- Entity
@@ -171,17 +338,46 @@ classDiagram
     Plant <|-- Peashooter
     Plant <|-- Sunflower
     Plant <|-- WallNut
+    Plant <|-- SnowPea
+    Plant <|-- CherryBomb
+    Plant <|-- LilyPad
 
     Zombie <|-- NormalZombie
+    Zombie <|-- FlagZombie
     Zombie <|-- ConeheadZombie
+    Zombie <|-- BucketheadZombie
+    Zombie <|-- PoleVaultingZombie
+    Zombie <|-- WaterZombie
 
     Tile <|-- GrassTile
     Tile <|-- WaterTile
+    Tile <|-- CraterTile
+
+    Projectile <|-- PeaProjectile
+    Projectile <|-- SnowPeaProjectile
+
+    ZombieState <|.. WalkingState
+    ZombieState <|.. EatingState
+    ZombieState <|.. VaultingState
+    ZombieState <|.. SwimmingState
+    ZombieState <|.. DrowningState
+    ZombieState <|.. DeadState
+
+    SpawnPolicy <|.. ScriptedSpawnPolicy
+    SpawnPolicy <|.. EscalatingRandomSpawnPolicy
+    MapBuilder <|.. CustomMapBuilder
+    CombatListener <|.. ScoreTracker
+
+    Zombie --> ZombieState
+    Cell --> Tile
+    Cell --> Plant
+    WaveManager --> SpawnPolicy
+    CustomMapBuilder ..> GameMap
 ```
 
-## 6. Cấu trúc thư mục dự án (Thiết kế kiến trúc dài hạn - Long-term Architecture)
+## 7. Cấu trúc thư mục dự án (Long-term Architecture)
 
-Dự án được tổ chức theo kiến trúc phân tầng chuẩn Maven (**Layered & Modular Architecture**), hướng tới tính mở rộng cao (Open/Closed Principle): dễ dàng bổ sung cây mới, zombie mới, địa hình mới và cơ chế map mới mà không phá vỡ logic lõi của Game Engine.
+Dự án theo kiến trúc phân tầng chuẩn Maven (**Layered & Modular Architecture**), hướng tới Open/Closed Principle: thêm cây, zombie, địa hình hoặc cách spawn mới mà không phá logic lõi.
 
 ```text
 .gitignore
@@ -198,179 +394,198 @@ src/
 │   │   │   ├── GameManager.java                        # Singleton quản trị phiên chơi hiện tại
 │   │   │   └── InputManager.java                       # Bắt và phân luồng sự kiện bàn phím/chuột
 │   │   │
-│   │   ├── model/                                      # Mô hình dữ liệu & Thực thể OOP
+│   │   ├── model/
 │   │   │   ├── base/                                   # [Trung] Lớp trừu tượng nền tảng
-│   │   │   │   ├── GameObject.java                     # Tọa độ (x, y), kích thước, update, render
-│   │   │   │   ├── Entity.java                         # Máu (hp, maxHp), takeDamage, isAlive
-│   │   │   │   └── Direction.java                      # Enum hướng di chuyển
+│   │   │   │   ├── GameObject.java
+│   │   │   │   ├── Entity.java
+│   │   │   │   └── Direction.java
 │   │   │   │
-│   │   │   ├── board/                                  # [Trung] Ma trận bàn cờ
-│   │   │   │   ├── GameBoard.java                      # Quản lý lưới 5x9, chuyển đổi Pixel <-> Grid
-│   │   │   │   └── Lane.java                           # Quản lý từng hàng riêng biệt (hàng cờ)
+│   │   │   ├── board/                                  # [Trung] Bàn cờ
+│   │   │   │   ├── GameBoard.java                      # Lưới Cell[5][9], Pixel <-> Grid
+│   │   │   │   ├── Cell.java                           # Tile + basePlant + topPlant
+│   │   │   │   ├── Lane.java                           # Quản lý từng hàng
+│   │   │   │   └── TerrainQuery.java                   # Interface tra địa hình cho zombie
 │   │   │   │
-│   │   │   ├── tile/                                   # [Trung] Hệ thống ô đất địa hình
-│   │   │   │   ├── Tile.java                           # Lớp trừu tượng ô cờ (row, col, canPlant)
-│   │   │   │   ├── GrassTile.java                      # Đất cỏ thông thường
-│   │   │   │   ├── WaterTile.java                      # Mặt nước (yêu cầu LilyPad)
-│   │   │   │   ├── CraterTile.java                     # Hố bom/đất lún (không thể trồng cây)
-│   │   │   │   └── TileType.java                       # Enum phân loại ô đất
+│   │   │   ├── tile/                                   # [Trung] Địa hình
+│   │   │   │   ├── Tile.java                           # canPlace(PlantType, Cell)
+│   │   │   │   ├── GrassTile.java                      # Mọi cây trừ LilyPad
+│   │   │   │   ├── WaterTile.java                      # LilyPad, rồi 1 cây trên LilyPad
+│   │   │   │   ├── CraterTile.java                     # Không trồng được, zombie đi qua
+│   │   │   │   └── TileType.java
 │   │   │   │
-│   │   │   ├── plant/                                  # [An Nguyên] Hệ sinh thái Cây trồng
-│   │   │   │   ├── Plant.java                          # Lớp trừu tượng cây (cost, cooldown, attack)
-│   │   │   │   ├── PlantType.java                      # Enum danh sách loại cây
-│   │   │   │   ├── PlantFactory.java                   # Factory Method khởi tạo cây theo ID
-│   │   │   │   ├── attack/                             # Nhóm cây tấn công
-│   │   │   │   │   ├── Peashooter.java                 # Bắn đậu xanh thẳng hàng
-│   │   │   │   │   ├── SnowPea.java                    # Bắn đậu băng làm chậm
-│   │   │   │   │   └── Repeater.java                   # Bắn 2 phát liên tiếp (mở rộng tương lai)
-│   │   │   │   ├── producer/                           # Nhóm cây sản xuất tài nguyên
-│   │   │   │   │   └── Sunflower.java                  # Định kỳ sinh mặt trời (Sun)
-│   │   │   │   ├── defense/                            # Nhóm cây phòng thủ / chắn đường
-│   │   │   │   │   └── WallNut.java                    # Máu cực dày, đổi sprite khi nứt vỡ
-│   │   │   │   ├── instant/                            # Nhóm cây dùng 1 lần (bom nổ)
-│   │   │   │   │   └── CherryBomb.java                 # Kích nổ 3x3 sau 1.2s
-│   │   │   │   └── support/                            # Nhóm cây hỗ trợ môi trường
-│   │   │   │       └── LilyPad.java                    # Đệm đặt trên WaterTile để trồng cây khác
+│   │   │   ├── plant/                                  # [An Nguyên] Cây trồng
+│   │   │   │   ├── Plant.java
+│   │   │   │   ├── PlantType.java
+│   │   │   │   ├── PlantLayer.java                     # BASE / TOP
+│   │   │   │   ├── PlantFactory.java
+│   │   │   │   ├── attack/
+│   │   │   │   │   ├── Peashooter.java
+│   │   │   │   │   ├── SnowPea.java
+│   │   │   │   │   └── Repeater.java                   # Mở rộng tương lai
+│   │   │   │   ├── producer/
+│   │   │   │   │   └── Sunflower.java
+│   │   │   │   ├── defense/
+│   │   │   │   │   └── WallNut.java
+│   │   │   │   ├── instant/
+│   │   │   │   │   └── CherryBomb.java
+│   │   │   │   └── support/
+│   │   │   │       └── LilyPad.java
 │   │   │   │
-│   │   │   ├── zombie/                                 # [Ngọc Minh] Chủng loại Zombie & AI
-│   │   │   │   ├── Zombie.java                         # Lớp trừu tượng Zombie (speed, dmg, lane)
-│   │   │   │   ├── ZombieType.java                     # Enum danh sách zombie
-│   │   │   │   ├── ZombieFactory.java                  # Factory Method khởi tạo quái
-│   │   │   │   ├── basic/                              # Zombie cơ bản
-│   │   │   │   │   ├── NormalZombie.java               # Zombie dân làng đi bộ
-│   │   │   │   │   └── FlagZombie.java                 # Cầm cờ dẫn đầu Huge Wave
-│   │   │   │   ├── armored/                            # Zombie có giáp chắn
-│   │   │   │   │   ├── ConeheadZombie.java             # Đội nón giao thông (+Armor HP)
-│   │   │   │   │   └── BucketheadZombie.java           # Đội xô sắt (+High Armor HP)
-│   │   │   │   ├── special/                            # Zombie có kỹ năng đặc biệt
-│   │   │   │   │   └── PoleVaultingZombie.java         # Cầm sào nhảy vượt cây đầu tiên
-│   │   │   │   └── aquatic/                            # Zombie bơi nước
-│   │   │   │       └── WaterZombie.java                # Đi phao vịt lội trên WaterTile
+│   │   │   ├── zombie/                                 # [Ngọc Minh] Zombie
+│   │   │   │   ├── Zombie.java                         # speed, dmg, lane, canSwim
+│   │   │   │   ├── ZombieType.java
+│   │   │   │   ├── ZombieFactory.java                  # Nạp spec + tung canSwim
+│   │   │   │   ├── basic/
+│   │   │   │   │   ├── NormalZombie.java
+│   │   │   │   │   └── FlagZombie.java                 # Dẫn đầu mỗi turn
+│   │   │   │   ├── armored/
+│   │   │   │   │   ├── ConeheadZombie.java
+│   │   │   │   │   └── BucketheadZombie.java
+│   │   │   │   ├── special/
+│   │   │   │   │   └── PoleVaultingZombie.java
+│   │   │   │   └── aquatic/
+│   │   │   │       └── WaterZombie.java                # drownChance = 0
 │   │   │   │
-│   │   │   ├── projectile/                             # [Tuấn Minh] Hệ thống đường đạn
-│   │   │   │   ├── Projectile.java                     # Lớp trừu tượng đạn (x, y, speed, dmg, lane)
-│   │   │   │   ├── PeaProjectile.java                  # Đạn đậu thường
-│   │   │   │   ├── SnowPeaProjectile.java              # Đạn băng (hiệu ứng Slow 50%)
-│   │   │   │   └── ProjectileType.java                 # Enum phân loại đạn
+│   │   │   ├── projectile/                             # [Tuấn Minh] Đường đạn
+│   │   │   │   ├── Projectile.java
+│   │   │   │   ├── PeaProjectile.java
+│   │   │   │   ├── SnowPeaProjectile.java
+│   │   │   │   └── ProjectileType.java
 │   │   │   │
-│   │   │   ├── wave/                                   # [Ngọc Minh] Đợt quái & Kịch bản màn chơi
-│   │   │   │   ├── Wave.java                           # Danh sách zombie, lane và thời gian trễ
-│   │   │   │   ├── WaveManager.java                    # Quản lý nhịp độ đợt quái, phát Huge Wave
-│   │   │   │   └── WaveEntry.java                      # Cấu hình từng quái lẻ trong wave
+│   │   │   ├── wave/                                   # [Ngọc Minh] Spawn (Strategy Pattern)
+│   │   │   │   ├── WaveManager.java                    # Giữ 1 SpawnPolicy, banner "Turn n"
+│   │   │   │   ├── SpawnPolicy.java                    # Interface chiến lược spawn
+│   │   │   │   ├── SpawnRequest.java                   # (ZombieType, lane)
+│   │   │   │   ├── ScriptedSpawnPolicy.java            # Campaign: wave kịch bản
+│   │   │   │   ├── EscalatingRandomSpawnPolicy.java    # Custom: ngẫu nhiên, tăng dần
+│   │   │   │   ├── Wave.java
+│   │   │   │   └── WaveEntry.java
 │   │   │   │
-│   │   │   └── economy/                                # [An Nguyên] Kinh tế tài nguyên & Thẻ bài
-│   │   │       ├── Sun.java                            # Mặt trời rơi/sinh ra, click để nhặt
-│   │   │       ├── SunSpawner.java                     # Tự động thả mặt trời ngẫu nhiên từ trời
-│   │   │       ├── CardSlot.java                       # Ô thẻ cây (hiển thị cooldown overlay, số dư sun)
-│   │   │       ├── CooldownTimer.java                  # Bộ đếm thời gian hồi chiêu từng loại hạt giống
-│   │   │       └── DeckManager.java                    # Thanh lựa chọn hạt giống (Seed Bank)
+│   │   │   └── economy/                                # [An Nguyên] Kinh tế & Thẻ bài
+│   │   │       ├── Sun.java
+│   │   │       ├── SunSpawner.java
+│   │   │       ├── CardSlot.java
+│   │   │       ├── CooldownTimer.java
+│   │   │       └── DeckManager.java                    # Lọc theo allowedPlants
 │   │   │
-│   │   ├── state/                                      # [Trung & Ngọc Minh] State Pattern (Máy trạng thái)
-│   │   │   ├── game/                                   # [Trung] Trạng thái vòng đời trò chơi
-│   │   │   │   ├── GameState.java                      # Interface trạng thái game (enter, update, exit)
-│   │   │   │   ├── MenuState.java                      # Màn hình chính
-│   │   │   │   ├── PlayingState.java                   # Trong trận chiến
-│   │   │   │   ├── PauseState.java                     # Tạm dừng trận đấu
-│   │   │   │   ├── VictoryState.java                   # Chiến thắng màn chơi
-│   │   │   │   └── GameOverState.java                  # Zombie tràn vào nhà (Game Over)
+│   │   ├── state/
+│   │   │   ├── game/                                   # [Trung] Trạng thái game
+│   │   │   │   ├── GameState.java
+│   │   │   │   ├── MenuState.java
+│   │   │   │   ├── PlayingState.java                   # Đếm thời gian sinh tồn, kiểm tra kết thúc
+│   │   │   │   ├── PauseState.java
+│   │   │   │   ├── VictoryState.java
+│   │   │   │   └── GameOverState.java
 │   │   │   │
-│   │   │   └── zombie/                                 # [Ngọc Minh] Máy trạng thái hành vi Zombie (FSM)
-│   │   │       ├── ZombieState.java                    # Interface hành vi
-│   │   │       ├── WalkingState.java                   # Đang bước đi tiến về bên trái
-│   │   │       ├── EatingState.java                    # Đang gặm cây ở ô phía trước
-│   │   │       ├── VaultingState.java                  # Đang kích hoạt kỹ năng nhảy qua cây
-│   │   │       ├── SwimmingState.java                  # Đang bơi trên ô nước
-│   │   │       └── DeadState.java                      # Trạng thái gục ngã / tan biến
+│   │   │   └── zombie/                                 # [Ngọc Minh] FSM zombie
+│   │   │       ├── ZombieState.java
+│   │   │       ├── WalkingState.java
+│   │   │       ├── EatingState.java                    # Ăn TOP trước BASE, quay về đúng state
+│   │   │       ├── VaultingState.java
+│   │   │       ├── SwimmingState.java
+│   │   │       ├── DrowningState.java                  # Animation chìm rồi chết
+│   │   │       └── DeadState.java
 │   │   │
-│   │   ├── system/                                     # [Tuấn Minh] Hệ thống xử lý chiến đấu & Tiện ích
-│   │   │   ├── collision/                              # Hệ thống va chạm
-│   │   │   │   ├── CollisionSystem.java                # Thuật toán quét va chạm AABB theo hàng
-│   │   │   │   └── Hitbox.java                         # Bounding box tọa độ kiểm tra giao thoa
-│   │   │   │
-│   │   │   ├── defense/                                # Cơ chế cứu nguy hàng thủ
-│   │   │   │   ├── LawnMower.java                      # Xe cắt cỏ đặt đầu mỗi hàng (bảo hiểm cuối)
-│   │   │   │   └── ShovelTool.java                     # Chiếc xẻng đào cây để trống ô
-│   │   │   │
-│   │   │   ├── audio/                                  # Hệ thống âm thanh độ trễ thấp
-│   │   │   │   ├── SoundManager.java                   # Phát SFX qua JavaFX AudioClip
-│   │   │   │   └── MusicPlayer.java                    # Phát nhạc nền BGM (lặp vô tận)
-│   │   │   │
-│   │   │   ├── effect/                                 # Hiệu ứng thị giác (VFX)
-│   │   │   │   ├── EffectManager.java                  # Quản lý vòng đời hiệu ứng tạm thời
-│   │   │   │   └── ParticleEffect.java                 # Hiệu ứng nổ bom 3x3, mảnh vỡ đậu, băng làm chậm
-│   │   │   │
-│   │   │   ├── resource/                               # Quản lý tài nguyên tập trung (Cache RAM)
-│   │   │   │   └── ResourceManager.java                # Singleton load và giữ trước Sprite, Âm thanh
-│   │   │   │
-│   │   │   └── event/                                  # [Tuấn Minh] Observer Pattern (Sự kiện chiến đấu)
-│   │   │       ├── GameEvent.java                      # Lớp sự kiện gốc
-│   │   │       ├── CombatEventBus.java                 # Trung tâm phát/nhận sự kiện (Publish-Subscribe)
-│   │   │       ├── CombatListener.java                 # Interface lắng nghe
-│   │   │       ├── BulletHitEvent.java                 # Đạn trúng zombie
-│   │   │       ├── ZombieDeathEvent.java               # Zombie bị tiêu diệt
-│   │   │       ├── BombExplosionEvent.java             # Bom nổ diện rộng 3x3
-│   │   │       ├── PlantEatenEvent.java                # Cây bị zombie ăn mất
-│   │   │       └── SunCollectedEvent.java              # Nhặt được Sun cộng điểm
+│   │   ├── system/                                     # [Tuấn Minh] Chiến đấu & Tiện ích
+│   │   │   ├── collision/
+│   │   │   │   ├── CollisionSystem.java
+│   │   │   │   └── Hitbox.java
+│   │   │   ├── defense/
+│   │   │   │   ├── LawnMower.java
+│   │   │   │   └── ShovelTool.java
+│   │   │   ├── audio/
+│   │   │   │   ├── SoundManager.java
+│   │   │   │   └── MusicPlayer.java
+│   │   │   ├── effect/
+│   │   │   │   ├── EffectManager.java
+│   │   │   │   └── ParticleEffect.java                 # Nổ 3x3, mảnh đậu, băng, nước bắn
+│   │   │   ├── resource/
+│   │   │   │   └── ResourceManager.java                # Singleton cache sprite & âm thanh
+│   │   │   ├── score/                                  # Hệ thống tính điểm
+│   │   │   │   ├── RunStats.java
+│   │   │   │   ├── ScoreTracker.java                   # CombatListener cập nhật RunStats
+│   │   │   │   ├── ScoreCalculator.java
+│   │   │   │   └── ScoreSpec.java
+│   │   │   └── event/                                  # Observer Pattern
+│   │   │       ├── GameEvent.java
+│   │   │       ├── CombatEventBus.java
+│   │   │       ├── CombatListener.java
+│   │   │       ├── BulletHitEvent.java
+│   │   │       ├── ZombieDeathEvent.java               # zombieType, cause (KILLED/DROWNED)
+│   │   │       ├── BombExplosionEvent.java
+│   │   │       ├── PlantEatenEvent.java                # plantType, layer (TOP/BASE)
+│   │   │       └── SunCollectedEvent.java
 │   │   │
-│   │   ├── builder/                                    # [Quang] Builder Pattern (Dựng bản đồ)
-│   │   │   ├── MapBuilder.java                         # Interface định nghĩa các bước xây map
-│   │   │   ├── CustomMapBuilder.java                   # Triển khai Builder chi tiết (Method Chaining)
-│   │   │   ├── LevelDirector.java                      # Director chứa kịch bản dựng map mẫu có sẵn
-│   │   │   └── GameMap.java                            # Đối tượng bản đồ hoàn chỉnh chứa Grid, Sun, Wave
+│   │   ├── builder/                                    # [Quang] Builder Pattern
+│   │   │   ├── MapBuilder.java
+│   │   │   ├── CustomMapBuilder.java
+│   │   │   ├── LevelDirector.java                      # Màn mẫu & mẫu nhanh
+│   │   │   ├── MapValidator.java                       # Lỗi chặn lưu & cảnh báo
+│   │   │   └── GameMap.java
 │   │   │
-│   │   ├── io/                                         # [Quang] Lưu & Nạp dữ liệu JSON (Google Gson)
-│   │   │   ├── MapSerializer.java                      # Đọc / Ghi file JSON cấu hình bản đồ
-│   │   │   ├── LevelDataLoader.java                    # Quét nạp danh sách map có trong thư mục
-│   │   │   └── dto/                                    # Data Transfer Objects hỗ trợ Gson ánh xạ
-│   │   │       ├── MapConfigDTO.java                   # Cấu trúc JSON cho map
-│   │   │       └── WaveConfigDTO.java                  # Cấu trúc JSON cho wave
+│   │   ├── io/                                         # [Quang] Lưu & Nạp dữ liệu (Gson)
+│   │   │   ├── UserDataPaths.java                      # ~/.pvz/
+│   │   │   ├── MapSerializer.java
+│   │   │   ├── LevelDataLoader.java                    # Liệt kê màn Campaign + map Custom
+│   │   │   ├── MapIdHasher.java                        # SHA-256 của tiles + allowedPlants
+│   │   │   ├── RecordRepository.java                   # Top 10 mỗi bố cục
+│   │   │   └── dto/
+│   │   │       ├── MapConfigDTO.java
+│   │   │       ├── ScriptedWaveDTO.java                # Chỉ dùng cho Campaign
+│   │   │       └── RunRecordDTO.java
 │   │   │
-│   │   └── view/                                       # [Quang & Trung] Giao diện người dùng JavaFX
-│   │       ├── SceneManager.java                       # Quản lý chuyển đổi cảnh (Menu <-> Play <-> Editor)
-│   │       ├── GameCanvas.java                         # Canvas chính vẽ bàn cờ, cây, đạn, quái
-│   │       ├── HUDView.java                            # Hiển thị số Sun, thanh chọn Card, nút Menu
-│   │       ├── MainMenuView.java                       # Giao diện màn hình khởi động game
-│   │       ├── LevelSelectView.java                    # Danh sách chọn màn chơi chính thức / tự tạo
-│   │       ├── MapEditorView.java                      # Giao diện trực quan công cụ tạo bản đồ
-│   │       └── MapEditorController.java                # Xử lý tương tác nút, palette, lưu map của Editor
+│   │   └── view/                                       # [Quang & Trung] Giao diện JavaFX
+│   │       ├── SceneManager.java
+│   │       ├── GameCanvas.java
+│   │       ├── HUDView.java                            # Sun, thẻ cây, đồng hồ, Turn n/N, điểm
+│   │       ├── MainMenuView.java
+│   │       ├── LevelSelectView.java
+│   │       ├── MapEditorView.java
+│   │       ├── MapEditorController.java
+│   │       └── ResultView.java                         # Chỉ số trận, kỷ lục mới, top 10
 │   │
-│   └── resources/                                      # Tài nguyên ứng dụng (Assets & Config)
+│   └── resources/                                      # Chỉ đọc khi đóng gói .jar
 │       ├── assets/
-│       │   ├── audio/                                  # Thư mục âm thanh
-│       │   │   ├── bgm/                                # Nhạc nền: `day_theme.mp3`, `menu.mp3`
-│       │   │   └── sfx/                                # Tiếng bắn: `shoot.wav`, `chomp.wav`, `boom.wav`
-│       │   └── sprites/                                # Hình ảnh bóc tách (.png)
-│       │       ├── plants/                             # `peashooter.png`, `sunflower.png`, ...
-│       │       ├── zombies/                            # `zombie_walk.png`, `zombie_eat.png`, ...
-│       │       ├── projectiles/                        # `pea.png`, `ice_pea.png`
-│       │       ├── tiles/                              # `lawn_tile.png`, `water_tile.png`
-│       │       └── ui/                                 # `card_slots.png`, `sun_counter.png`, `buttons/`
+│       │   ├── audio/
+│       │   │   ├── bgm/                                # `day_theme.mp3`, `menu.mp3`
+│       │   │   └── sfx/                                # `shoot.wav`, `chomp.wav`, `boom.wav`, `splash.wav`
+│       │   └── sprites/
+│       │       ├── plants/
+│       │       ├── zombies/
+│       │       ├── projectiles/
+│       │       ├── tiles/                              # `lawn_tile.png`, `water_tile.png`, `crater_tile.png`
+│       │       └── ui/
 │       │
-│       ├── data/                                       # Dữ liệu cấu hình hệ thống (Data-Driven)
-│       │   ├── plants_spec.json                        # Cấu hình HP, Dame, Cost, Cooldown chuẩn
-│       │   └── zombies_spec.json                       # Cấu hình HP, Tốc độ chạy, Sức cắn của zombie
+│       ├── data/                                       # Data-Driven
+│       │   ├── plants_spec.json                        # HP, Damage, Cost, Cooldown
+│       │   ├── zombies_spec.json                       # HP, Tốc độ, Sức cắn, drownChance, điểm giết
+│       │   ├── spawn_spec.json                         # gracePeriod, turnDuration, T0, decay, T_min, maxAliveZombies, trọng số theo turn
+│       │   └── score_spec.json                         # Hệ số tính điểm
 │       │
-│       └── levels/                                     # Màn chơi mẫu định dạng JSON
-│           ├── campaign/                               # Màn chơi chiến dịch mặc định
-│           │   ├── level_1_day.json                    # Sân cỏ 5 hàng cơ bản
-│           │   └── level_2_pool.json                   # Sân bể bơi có 2 hàng nước ở giữa
-│           └── custom/                                 # Thư mục chứa các map người chơi tự tạo lưu vào
+│       └── levels/
+│           └── campaign/
+│               ├── level_1_day.json
+│               └── level_2_pool.json
 │
-└── test/                                               # [Toàn nhóm] Hệ thống kiểm thử tự động (JUnit 5)
-    └── java/com/pvz/
-        ├── core/
-        │   ├── GameBoardTest.java                      # Kiểm tra tính toán tọa độ Grid <-> Pixel
-        │   └── GameManagerTest.java                    # Kiểm thử chuyển State & quản lý Sun phiên chơi
-        │
-        │   # --- Kế hoạch, sẽ bổ sung khi các module tương ứng hoàn thành ---
-        ├── plant/                                      # [TV2] PlantFactoryTest, SunflowerEconomyTest
-        ├── zombie/                                     # [TV3] ZombieFSMTest
-        ├── system/                                     # [TV4] CollisionTest
-        └── builder/                                    # [TV5] MapBuilderTest, JsonSerializationTest
+└── test/java/com/pvz/                                  # [Toàn nhóm] JUnit 5
+    ├── core/
+    │   ├── GameBoardTest.java                          # Grid <-> Pixel, canPlace theo tile & tầng cây
+    │   └── GameManagerTest.java                        # Chuyển State, Sun phiên chơi
+    ├── plant/                                          # [TV2] PlantFactoryTest, DeckManagerTest (lọc allowedPlants)
+    ├── zombie/                                         # [TV3] ZombieFSMTest, SwimDecisionTest, EatingOnWaterTest
+    ├── wave/                                           # [TV3] EscalatingSpawnTest (interval >= T_min, seed cố định, maxTurns = null)
+    ├── system/                                         # [TV4] CollisionTest, ScoreCalculatorTest
+    └── builder/                                        # [TV5] MapBuilderTest, MapValidatorTest, JsonSerializationTest, RecordRepositoryTest
 ```
 
-> **Trạng thái hiện tại (nhánh `feat/core-engine`):** phần Engine + Grid + State đã chạy được
-> (`mvn test` → 14/14 pass), các package còn lại là khung kế hoạch cho các thành viên bổ sung dần.
+**Dữ liệu người dùng** (không nằm trong jar):
+```text
+~/.pvz/
+├── maps/            # Map Custom người chơi lưu
+└── records.json     # Kỷ lục theo mã bố cục
+```
+
+> **Trạng thái hiện tại (nhánh `feat/core-engine`):** phần Engine + Grid + State đã chạy được và có test (`mvn test`). Các package còn lại là khung kế hoạch để các thành viên bổ sung dần.
 
 ---
 
@@ -378,31 +593,37 @@ src/
 
 | Thành viên | Gói (Package) phụ trách chính | Các lớp & Module trọng tâm | Mục tiêu kiến trúc dài hạn |
 | :---: | :--- | :--- | :--- |
-| **TV 1**<br>*(Trung)* | `core/`<br>`model/base/`<br>`model/board/`<br>`model/tile/`<br>`state/game/` | • `GameLoop`, `GameEngine`, `GameManager`<br>• `GameObject`, `Entity`<br>• `GameBoard`, `Tile` (Grass, Water, Crater)<br>• Cụm `GameState` (Menu, Playing, Pause, GameOver) | Xây dựng xương sống Engine ổn định ở 60 FPS độc lập phần cứng; quản lý lưới 5x9 chuẩn để các thành viên khác cắm đối tượng vào. |
-| **TV 2**<br>*(An Nguyên)* | `model/plant/`<br>`model/economy/`<br>`resources/data/plants_spec.json` | • `Plant` (abstract), `PlantFactory`<br>• Các nhánh cây: `attack/`, `producer/`, `defense/`, `instant/`, `support/`<br>• `Sun`, `CardSlot`, `DeckManager` | Triển khai mô hình Open/Closed Principle: thêm bất kỳ loại cây mới nào chỉ cần thêm 1 class mà không cần sửa code cũ; tách chỉ số cây ra file JSON. |
-| **TV 3**<br>*(Ngọc Minh)* | `model/zombie/`<br>`model/wave/`<br>`state/zombie/`<br>`resources/data/zombies_spec.json` | • `Zombie` (abstract), `ZombieFactory`<br>• Các nhánh zombie: `basic/`, `armored/`, `special/`, `aquatic/`<br>• Máy trạng thái `ZombieState` (Walk, Eat, Vault, Dead)<br>• `WaveManager`, `Wave` | Ứng dụng trọn vẹn FSM (Finite State Machine) giúp zombie đổi trạng thái mượt mà, không dùng if-else lồng phức tạp; kịch bản Wave có thể tùy biến linh hoạt. |
-| **TV 4**<br>*(Tuấn Minh)* | `model/projectile/`<br>`system/collision/`<br>`system/defense/`<br>`system/audio/`<br>`system/resource/`<br>`system/event/` | • `Projectile`, `PeaProjectile`, `SnowPeaProjectile`<br>• `CollisionSystem` (AABB), `LawnMower`, `ShovelTool`<br>• `ResourceManager` (Singleton cache ảnh/âm thanh)<br>• `CombatEventBus` (**Observer Pattern**) | Tách rời hoàn toàn logic chiến đấu khỏi render đồ họa; nạp trước tài nguyên vào RAM giúp game chạy mượt không bị đơ giật âm thanh. |
-| **TV 5**<br>*(Quang)* | `builder/`<br>`io/`<br>`view/`<br>`resources/levels/` | • `MapBuilder`, `CustomMapBuilder`, `LevelDirector`<br>• `MapSerializer` (Google Gson DTO)<br>• Bộ View: `MapEditorView`, `LevelSelectView`, `MapEditorController` | Hiện thực trọn vẹn Builder Pattern; xây dựng công cụ Map Editor trực quan giúp người dùng sáng tạo bản đồ và chia sẻ qua file JSON. |
+| **TV 1**<br>*(Trung)* | `core/`<br>`model/base/`<br>`model/board/`<br>`model/tile/`<br>`state/game/` | • `GameLoop`, `GameEngine`, `GameManager`<br>• `GameObject`, `Entity`<br>• `GameBoard`, `Cell`, `TerrainQuery`<br>• `Tile` (Grass, Water, Crater) với `canPlace`<br>• Cụm `GameState`, đếm thời gian sinh tồn, 2 điều kiện kết thúc | Engine ổn định 60 FPS độc lập phần cứng; lưới 5x9 hai tầng cây để các thành viên khác cắm đối tượng vào. |
+| **TV 2**<br>*(An Nguyên)* | `model/plant/`<br>`model/economy/`<br>`resources/data/plants_spec.json` | • `Plant`, `PlantLayer`, `PlantFactory`<br>• Các nhánh cây: `attack/`, `producer/`, `defense/`, `instant/`, `support/`<br>• `Sun`, `CardSlot`, `DeckManager` (lọc `allowedPlants`) | Open/Closed: thêm cây mới chỉ cần thêm 1 class và 1 mục trong spec. |
+| **TV 3**<br>*(Ngọc Minh)* | `model/zombie/`<br>`model/wave/`<br>`state/zombie/`<br>`resources/data/zombies_spec.json`<br>`resources/data/spawn_spec.json` | • `Zombie` (`canSwim`), `ZombieFactory`<br>• FSM: Walk, Eat, Vault, Swim, Drown, Dead<br>• `SpawnPolicy` (Strategy): Scripted & EscalatingRandom<br>• `WaveManager` | FSM không if-else lồng nhau; đổi cách spawn bằng Strategy; ngẫu nhiên nhưng test được bằng seed. |
+| **TV 4**<br>*(Tuấn Minh)* | `model/projectile/`<br>`system/collision/`<br>`system/defense/`<br>`system/audio/`<br>`system/resource/`<br>`system/event/`<br>`system/score/`<br>`resources/data/score_spec.json` | • `Projectile`, `PeaProjectile`, `SnowPeaProjectile`<br>• `CollisionSystem` (AABB), `LawnMower`, `ShovelTool`<br>• `ResourceManager` (Singleton)<br>• `CombatEventBus` (**Observer**)<br>• `ScoreTracker`, `ScoreCalculator`, `RunStats` | Tách logic chiến đấu khỏi render; hệ thống điểm chỉ lắng nghe sự kiện, không gọi chéo module khác. |
+| **TV 5**<br>*(Quang)* | `builder/`<br>`io/`<br>`view/`<br>`resources/levels/` | • `MapBuilder`, `CustomMapBuilder`, `LevelDirector`, `MapValidator`<br>• `MapSerializer`, `MapIdHasher`, `RecordRepository`, `UserDataPaths`<br>• `MapEditorView`, `MapEditorController`, `LevelSelectView`, `ResultView` | Builder Pattern trọn vẹn; Map Editor trực quan, map chia sẻ được qua JSON; kỷ lục bền vững ngoài jar. |
 
 ---
 
 ### Nguyên tắc kiến trúc dài hạn & Phối hợp mã nguồn (Team Guidelines)
 
-1. **Lớp trừu tượng (Base Classes) đi trước:** 
-   - `Trung` (TV1) hoàn thành sớm `GameObject`, `Entity`, và `GameBoard` trên nhánh `feat/core-engine` để `An Nguyên` (TV2) và `Ngọc Minh` (TV3) có nền tảng kế thừa mà không bị lỗi biên dịch.
-2. **Kiến trúc hướng sự kiện (Event-Driven via Observer Pattern):**
-   - Không gọi chéo phụ thuộc chặt giữa các module. Khi đạn bắn trúng zombie, `Tuấn Minh` (TV4) phát sự kiện `BulletHitEvent` qua `CombatEventBus`. `Ngọc Minh` (TV3) lắng nghe để trừ máu quái, `Tuấn Minh` phát âm thanh trúng đạn, không tạo mối liên kết cứng giữa `Pea` và `Zombie`.
-3. **Thiết kế hướng dữ liệu (Data-Driven Design):**
-   - Chỉ số cơ bản (Máu, Giá Sun, Tốc độ, Cooldown) được lưu trong `resources/data/`. `PlantFactory` và `ZombieFactory` sẽ nạp từ file config này, giúp việc cân bằng sức mạnh trong game cực kỳ dễ dàng mà không cần sửa code.
+1. **Lớp trừu tượng đi trước:**
+   - `Trung` (TV1) hoàn thành sớm `GameObject`, `Entity`, `GameBoard`, `Cell` và `TerrainQuery` trên nhánh `feat/core-engine` để TV2 và TV3 có nền tảng kế thừa mà không lỗi biên dịch.
+2. **Kiến trúc hướng sự kiện (Observer):**
+   - Không gọi chéo phụ thuộc chặt giữa các module. Khi zombie chết, chỉ phát `ZombieDeathEvent` qua `CombatEventBus`. `SoundManager`, `EffectManager` và `ScoreTracker` tự lắng nghe.
+3. **Thiết kế hướng dữ liệu (Data-Driven):**
+   - Chỉ số cây, zombie (kể cả `drownChance`), tham số spawn và hệ số điểm đều nằm trong `resources/data/`. Cân bằng game không cần sửa code.
 4. **Quản lý tài nguyên tập trung qua Singleton:**
-   - Tuyệt đối không `new Image(...)` rải rác trong các class con. Toàn bộ hình ảnh và âm thanh phải thông qua `ResourceManager.getInstance().getImage("...")` để tối ưu bộ nhớ.
+   - Không `new Image(...)` rải rác. Mọi hình ảnh và âm thanh lấy qua `ResourceManager.getInstance().getImage("...")`.
+5. **Ngẫu nhiên phải kiểm thử được:**
+   - Không gọi `new Random()` trong logic game. Tiêm `Random` qua constructor; test dùng seed cố định.
+6. **Thời gian chỉ chạy khi đang chơi:**
+   - Mọi bộ đếm (spawn, cooldown, thời gian sinh tồn) chỉ cộng dồn `deltaTime` trong `PlayingState`, để Pause không làm sai lệch trận đấu hay kỷ lục.
+7. **Không ghi file vào `resources/`:**
+   - Map Custom và kỷ lục ghi vào `~/.pvz/` qua `UserDataPaths`.
 
-## 7. Quy tắc Git & Phối hợp
+## 8. Quy tắc Git & Phối hợp
 - **Quy ước đặt tên nhánh theo tính năng (Feature-based Branching):**
-  - Tính năng mới: `feat/<ten-tinh-nang>` (ví dụ: `feat/board-grid`, `feat/peashooter-plant`, `feat/zombie-states`, `feat/collision-detection`, `feat/map-editor`).
+  - Tính năng mới: `feat/<ten-tinh-nang>` (ví dụ: `feat/board-grid`, `feat/peashooter-plant`, `feat/zombie-states`, `feat/random-spawn`, `feat/score-system`, `feat/map-editor`).
   - Sửa lỗi: `fix/<ten-loi>` (ví dụ: `fix/bullet-offset`, `fix/cooldown-timer`).
   - Tái cấu trúc: `refactor/<module>` (ví dụ: `refactor/resource-loader`).
 - **Quy trình làm việc:**
   1. Luôn tạo nhánh mới từ `main` trước khi làm một tính năng.
   2. Không commit trực tiếp vào nhánh `main`.
-  3. Sau khi hoàn thành và test xong tính năng, tạo Pull Request (PR) để các thành viên khác review trước khi merge vào `main`.
+  3. Sau khi hoàn thành và test xong, tạo Pull Request để các thành viên khác review trước khi merge vào `main`.
