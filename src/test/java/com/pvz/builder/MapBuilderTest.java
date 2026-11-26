@@ -85,6 +85,30 @@ class MapBuilderTest {
     }
 
     @Test
+    @DisplayName("A map without waves is custom, a map with waves is campaign")
+    void testMode() {
+        assertEquals(MapMode.CUSTOM, builder.setMaxTurns(5).build().getMode());
+
+        GameMap campaign = new CustomMapBuilder(Set.of())
+                .addWave(waveOf("NORMAL", 0, 1.0))
+                .build();
+        assertEquals(MapMode.CAMPAIGN, campaign.getMode());
+        assertFalse(campaign.isEndless());
+    }
+
+    @Test
+    @DisplayName("Scripted waves and a turn limit cannot be combined, in either order")
+    void testWavesAndMaxTurnsConflict() {
+        builder.setMaxTurns(3).addWave(waveOf("NORMAL", 0, 1.0));
+        assertThrows(IllegalStateException.class, () -> builder.build());
+
+        MapBuilder other = new CustomMapBuilder(Set.of())
+                .addWave(waveOf("NORMAL", 0, 1.0))
+                .setMaxTurns(3);
+        assertThrows(IllegalStateException.class, () -> other.build());
+    }
+
+    @Test
     @DisplayName("Max turns accepts a positive count or null for endless")
     void testMaxTurns() {
         GameMap limited = builder.setMaxTurns(5).build();

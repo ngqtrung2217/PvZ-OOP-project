@@ -24,10 +24,13 @@ public interface MapBuilder {
     /** Plants offered in the seed bar, in this order. Duplicates are kept only once. */
     MapBuilder setAllowedPlants(List<String> plantIds);
 
-    /** Number of turns to survive, or {@code null} for endless. */
+    /** Custom maps only: number of turns to survive, or {@code null} for endless. */
     MapBuilder setMaxTurns(Integer turns);
 
-    /** Waves are played in the order they are added. */
+    /**
+     * Campaign maps only: adding a wave makes the map a campaign level. Waves are played
+     * in the order they are added.
+     */
     MapBuilder addWave(WaveConfig wave);
 
     GameMap build();

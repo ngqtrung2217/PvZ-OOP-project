@@ -99,8 +99,17 @@ public class CustomMapBuilder implements MapBuilder {
         return this;
     }
 
+    /**
+     * Checked here rather than in the setters because the two can be set in either order.
+     *
+     * @throws IllegalStateException if both scripted waves and a turn limit are set
+     */
     @Override
     public GameMap build() {
+        if (!waves.isEmpty() && maxTurns != null) {
+            throw new IllegalStateException(
+                    "A campaign map ends after its waves and cannot also set max turns");
+        }
         return new GameMap(name, tiles, startingSun, allowedPlants, maxTurns, waves);
     }
 

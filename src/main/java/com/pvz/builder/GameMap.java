@@ -54,8 +54,17 @@ public final class GameMap {
         return maxTurns;
     }
 
+    /**
+     * A custom map only stores how many turns to survive. Zombies then come from
+     * spawn_spec.json, so a map with scripted waves is a campaign level.
+     */
+    public MapMode getMode() {
+        return waves.isEmpty() ? MapMode.CUSTOM : MapMode.CAMPAIGN;
+    }
+
+    /** @return true for a custom map without a turn limit. A campaign ends after its waves. */
     public boolean isEndless() {
-        return maxTurns == null;
+        return getMode() == MapMode.CUSTOM && maxTurns == null;
     }
 
     /**
