@@ -2,6 +2,7 @@ package com.pvz.model.board;
 
 import com.pvz.model.tile.GrassTile;
 import com.pvz.model.tile.Tile;
+import com.pvz.model.tile.TileType;
 import javafx.scene.canvas.GraphicsContext;
 
 /**
@@ -11,7 +12,7 @@ import javafx.scene.canvas.GraphicsContext;
  * Final because the constructor seeds the grid through this class's own coordinate
  * helpers; subclassing could observe an uninitialised board.
  */
-public final class GameBoard {
+public final class GameBoard implements TerrainQuery {
     public static final int ROWS = 5;
     public static final int COLS = 9;
 
@@ -113,6 +114,12 @@ public final class GameBoard {
         if (isValidCoordinate(row, col)) {
             tiles[row][col] = tile;
         }
+    }
+
+    @Override
+    public TileType getTileType(int lane, double x) {
+        Tile tile = getTile(lane, getColAt(x));
+        return tile == null ? null : tile.getType();
     }
 
     public Lane getLane(int row) {

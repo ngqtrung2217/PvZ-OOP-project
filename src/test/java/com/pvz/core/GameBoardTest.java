@@ -1,6 +1,7 @@
 package com.pvz.core;
 
 import com.pvz.model.board.GameBoard;
+import com.pvz.model.board.TerrainQuery;
 import com.pvz.model.tile.GrassTile;
 import com.pvz.model.tile.Tile;
 import com.pvz.model.tile.TileType;
@@ -119,5 +120,21 @@ public class GameBoardTest {
         assertNotNull(retrieved);
         assertEquals(TileType.WATER, retrieved.getType());
         assertFalse(retrieved.canPlant());
+    }
+
+    @Test
+    @DisplayName("TerrainQuery answers by lane and pixel x, null outside the grid")
+    void testTerrainQuery() {
+        board.setTile(2, 3, new WaterTile(2, 3, board.getCellOriginX(3), board.getCellOriginY(2),
+                GameBoard.CELL_WIDTH, GameBoard.CELL_HEIGHT));
+        TerrainQuery terrain = board;
+
+        assertEquals(TileType.WATER, terrain.getTileType(2, board.getCellCenterX(3)));
+        assertEquals(TileType.WATER, terrain.getTileType(2, board.getCellOriginX(3)));
+        assertEquals(TileType.GRASS, terrain.getTileType(2, board.getCellOriginX(4)));
+        assertEquals(TileType.GRASS, terrain.getTileType(1, board.getCellCenterX(3)));
+        assertNull(terrain.getTileType(2, GameBoard.START_X - 1));
+        assertNull(terrain.getTileType(-1, board.getCellCenterX(3)));
+        assertNull(terrain.getTileType(GameBoard.ROWS, board.getCellCenterX(3)));
     }
 }

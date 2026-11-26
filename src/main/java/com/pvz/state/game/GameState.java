@@ -36,6 +36,22 @@ public interface GameState {
      */
     void handleKeyPressed(KeyEvent event);
 
+    /** Mouse button went down. Optional: most screens only need clicks. */
+    default void handleMousePressed(MouseEvent event) {
+    }
+
+    /** Mouse moved with a button held, for painting by dragging. Optional. */
+    default void handleMouseDragged(MouseEvent event) {
+    }
+
+    /** Mouse button was released. Optional. */
+    default void handleMouseReleased(MouseEvent event) {
+    }
+
+    /** A character was typed, for text input such as a map name. Optional. */
+    default void handleKeyTyped(KeyEvent event) {
+    }
+
     /**
      * Called when exiting this state.
      */
