@@ -1,0 +1,50 @@
+{
+  "SUNFLOWER": {
+    "hp": 300,
+    "cost": 50,
+    "cooldown": 7.5,
+    "attackSpeed": 24.0,
+    "damage": 0,
+    "layer": "TOP"
+  },
+  "PEASHOOTER": {
+    "hp": 300,
+    "cost": 100,
+    "cooldown": 7.5,
+    "attackSpeed": 1.5,
+    "damage": 20,
+    "layer": "TOP"
+  },
+  "SNOW_PEA": {
+    "hp": 300,
+    "cost": 175,
+    "cooldown": 7.5,
+    "attackSpeed": 1.5,
+    "damage": 20,
+    "layer": "TOP"
+  },
+  "WALL_NUT": {
+    "hp": 4000,
+    "cost": 50,
+    "cooldown": 30.0,
+    "attackSpeed": 0.0,
+    "damage": 0,
+    "layer": "TOP"
+  },
+  "CHERRY_BOMB": {
+    "hp": 300,
+    "cost": 150,
+    "cooldown": 50.0,
+    "attackSpeed": 1.2,
+    "damage": 1800,
+    "layer": "TOP"
+  },
+  "LILY_PAD": {
+    "hp": 300,
+    "cost": 25,
+    "cooldown": 7.5,
+    "attackSpeed": 0.0,
+    "damage": 0,
+    "layer": "BASE"
+  }
+}
