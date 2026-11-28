@@ -2,9 +2,10 @@ package com.pvz.model.zombie;
 
 import com.pvz.model.base.Entity;
 import com.pvz.model.board.GameBoard;
-import com.pvz.model.tile.Tile;
+import com.pvz.model.board.TerrainQuery;
 import com.pvz.model.tile.TileType;
 import com.pvz.model.zombie.state.DeadState;
+import com.pvz.model.zombie.state.DrowningState;
 import com.pvz.model.zombie.state.EatingState;
 import com.pvz.model.zombie.state.WalkingState;
 import com.pvz.model.zombie.state.ZombieState;
@@ -30,6 +31,10 @@ public abstract class Zombie extends Entity {
     protected double swimSpeed;
     protected boolean hasVaulted = false;
     protected boolean waterZombie = false;
+    protected boolean canSwim = false;
+    protected boolean drowned = false;
+    protected TerrainQuery terrainQuery;
+    protected LayeredTarget currentCellTarget;
     /** Spec type such as "NORMAL" or "BUCKETHEAD"; set by ZombieFactory, used for scoring. */
     private String type = "UNKNOWN";
     protected double slowMultiplier = 1.0;
@@ -43,6 +48,7 @@ public abstract class Zombie extends Entity {
         this.swimSpeed = speed;
         this.lane = lane;
         this.board = board;
+        this.terrainQuery = board;
         this.readyToRemove = false;
         this.renderColor = Color.DARKGRAY;
         this.currentState = new WalkingState();
@@ -87,8 +93,43 @@ public abstract class Zombie extends Entity {
         if (target == null || !target.isAlive()) {
             return;
         }
+        if (currentState instanceof DeadState || currentState instanceof DrowningState) {
+            return;
+        }
+        if (isOnWater() && !canSwim()) {
+            changeState(new DrowningState());
+            return;
+        }
         this.currentTarget = target;
         changeState(new EatingState());
+    }
+
+    /**
+     * Collision hook for 2-layer cells (TOP and BASE plants).
+     * Prioritizes TOP layer before falling back to BASE layer.
+     *
+     * @param cell           The 2-layer cell target.
+     * @param isTallObstacle True if the active target cannot be vaulted over.
+     */
+    public void onCollideWithCell(LayeredTarget cell, boolean isTallObstacle) {
+        if (cell == null) {
+            return;
+        }
+        if (currentState instanceof DeadState || currentState instanceof DrowningState) {
+            return;
+        }
+        if (isOnWater() && !canSwim()) {
+            changeState(new DrowningState());
+            return;
+        }
+        Entity target = cell.getTopPlant();
+        if (target == null || !target.isAlive()) {
+            target = cell.getBasePlant();
+        }
+        if (target != null && target.isAlive()) {
+            this.currentCellTarget = cell;
+            onCollideWithTarget(target, isTallObstacle);
+        }
     }
 
     @Override
@@ -196,21 +237,25 @@ public abstract class Zombie extends Entity {
     }
 
     /**
+     * Queries the terrain type under this zombie's center (or left edge) via {@link TerrainQuery}.
+     */
+    public TileType getCurrentTileType() {
+        TerrainQuery query = terrainQuery != null ? terrainQuery : board;
+        if (query == null) {
+            return null;
+        }
+        TileType tileType = query.getTileType(lane, x + width / 2.0);
+        if (tileType == null) {
+            tileType = query.getTileType(lane, x);
+        }
+        return tileType;
+    }
+
+    /**
      * Checks whether this zombie's feet/center are on a WATER tile.
      */
     public boolean isOnWater() {
-        if (board == null) {
-            return false;
-        }
-        int col = board.getColAt(x + width / 2.0);
-        if (col == -1) {
-            col = board.getColAt(x);
-        }
-        if (col != -1 && lane >= 0 && lane < GameBoard.ROWS) {
-            Tile tile = board.getTile(lane, col);
-            return tile != null && tile.getType() == TileType.WATER;
-        }
-        return false;
+        return getCurrentTileType() == TileType.WATER;
     }
 
     // Getters and Setters
@@ -272,6 +317,41 @@ public abstract class Zombie extends Entity {
 
     public void setBoard(GameBoard board) {
         this.board = board;
+        if (board != null) {
+            this.terrainQuery = board;
+        }
+    }
+
+    public TerrainQuery getTerrainQuery() {
+        return terrainQuery != null ? terrainQuery : board;
+    }
+
+    public void setTerrainQuery(TerrainQuery terrainQuery) {
+        this.terrainQuery = terrainQuery;
+    }
+
+    public LayeredTarget getCurrentCellTarget() {
+        return currentCellTarget;
+    }
+
+    public void setCurrentCellTarget(LayeredTarget currentCellTarget) {
+        this.currentCellTarget = currentCellTarget;
+    }
+
+    public boolean canSwim() {
+        return canSwim || isWaterZombie();
+    }
+
+    public void setCanSwim(boolean canSwim) {
+        this.canSwim = canSwim;
+    }
+
+    public boolean isDrowned() {
+        return drowned;
+    }
+
+    public void setDrowned(boolean drowned) {
+        this.drowned = drowned;
     }
 
     public Color getRenderColor() {
